@@ -30,47 +30,88 @@ export default class AppJsonPlugin implements WebpackPluginInstance {
           stage: Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
         },
         (assets) => {
-          const appMap: {
-            [appName: string]: {
-              appName: string
-              index: string
-              hash: string
-            }
-          } = {}
 
-          Object.keys(assets).forEach(path => {
-            const [appName, ...others] = path.split('/')
+          const appJson: {
+            name: string
+            index: string
+            hash: string
+            assets: string[]
+          } = {
+            name: '',
+            index: '',
+            hash: '',
+            assets: Object.keys(assets),
+          }
+
+          const indexJs = appJson.assets.find(filePath => filePath.match(/\.js$/i) != null)
+
+          if (indexJs != null) {
+            const [appName, ...others] = indexJs.split('/')
             const filePath = others[others.length - 1]
+            appJson.name = appName
+            appJson.index = filePath
+            appJson.hash = filePath.replace('.js', '')
 
-            // console.log(appName, filePath)
+            const indexJsSource = assets[indexJs]
 
-            // if (appMap[appName] == null) {
-            //   appMap[appName] = {
-            //     appName,
-            //     // assets: [],
-            //   }
-            // }
+            appJson.assets = [
+              ...appJson.assets.filter(e => e !== indexJs),
+              filePath,
+            ]
 
-            if (filePath.match(/\.js$/i)) {
-              appMap[appName] = {
-                appName,
-                index: filePath,
-                hash: filePath.replace('.js', '')
-              }
-              // appMap[appName].index = filePath
-              // appMap[appName].hash = filePath.replace('.js', '')
-            }
-            //  else if (filePath.match(/\.(png|jpe?g|gif|svg)$/i)) {
-            //   appMap[appName].assets.push(path.replace(appName + '/', ''))
-            // }
-          })
+            compilation.deleteAsset(indexJs)
+            compilation.emitAsset(filePath, indexJsSource)
 
-          Object.entries(appMap).forEach(([appName, content]) => {
-            compilation.emitAsset(
-              appName + '/app.json',
-              new RawSource(JSON.stringify(content, null, 2))
-            )
-          })
+          }
+
+          compilation.emitAsset(
+            'app.json',
+            new RawSource(JSON.stringify(appJson, null, 2))
+          )
+
+          // const appMap: {
+          //   [appName: string]: {
+          //     appName: string
+          //     index: string
+          //     hash: string
+          //   }
+          // } = {}
+
+
+          // Object.keys(assets).forEach(path => {
+          //   const [appName, ...others] = path.split('/')
+          //   const filePath = others[others.length - 1]
+
+          //   // console.log(appName, filePath)
+
+          //   // if (appMap[appName] == null) {
+          //   //   appMap[appName] = {
+          //   //     appName,
+          //   //     // assets: [],
+          //   //   }
+          //   // }
+
+          //   if (filePath.match(/\.js$/i)) {
+          //     appMap[appName] = {
+          //       appName,
+          //       index: filePath,
+          //       hash: filePath.replace('.js', '')
+          //     }
+          //     // appMap[appName].index = filePath
+          //     // appMap[appName].hash = filePath.replace('.js', '')
+          //   }
+          //   //  else if (filePath.match(/\.(png|jpe?g|gif|svg)$/i)) {
+          //   //   appMap[appName].assets.push(path.replace(appName + '/', ''))
+          //   // }
+          // })
+
+          // Object.entries(appMap).forEach(([appName, content]) => {
+          //   compilation.emitAsset(
+          //     appName + '/app.json',
+          //     new RawSource(JSON.stringify(content, null, 2))
+          //   )
+          // })
+
           // "assets" 是一个包含 compilation 中所有资源(assets)的对象。
           // 该对象的键是资源的路径，
           // 值是文件的源码

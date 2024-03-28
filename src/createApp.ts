@@ -1,20 +1,21 @@
 import chalk from 'chalk'
 import path from 'node:path'
-import { exec } from 'node:child_process'
+import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import { mkdir, writeFile, copyFile } from 'node:fs/promises'
 
-console.log(__dirname)
-
 function getAppDir(appName: string) {
-  return path.join(__dirname, appName)
+  return path.join(process.cwd(), appName)
 }
 
 async function createAppDir(appName: string) {
-  const dir = path.join(getAppDir(appName), 'src')
-  if (fs.existsSync(dir)) {
+  const appDir = getAppDir(appName)
+
+  if (fs.existsSync(appDir)) {
     throw new Error(`Directory "./${appName}" already exists.`)
   }
+
+  const dir = path.resolve(appDir, 'src/svgs')
   await mkdir(dir, { recursive: true })
 }
 
@@ -26,37 +27,66 @@ async function createEntryFile(appName: string) {
   await writeFile(
     filePath,
     `
-const { runApp, createElement, RouterProvider, Router, } = Scripting
-const { Center, Text, CupertinoPageScaffold, CupertinoNavigationBar, } = Scripting.Widgets
 
-function IndexPage() {
-  return (
-    <CupertinoPageScaffold
-      navigationBar={
-        <CupertinoNavigationBar
-          middle={
-            <Text>${appName}</Text>
+    import { runApp, createElement, RouterProvider, Router, Column, CupertinoNavigationBar, CupertinoPageScaffold, Svg, Text, Container, Color } from 'scripting'
+    import Logo from './svgs/logo.svg'
+    
+    function ScriptingLogo() {
+      return (
+        <Container
+          clipBehavior={'hardEdge'}
+          width={80}
+          height={80}
+          margin={{
+            vertical: 100,
+          }}
+          borderRadius={16}
+        >
+          <Svg src={Logo} />
+        </Container>
+      )
+    }
+    
+    function HomePage() {
+      const backgroundColor: Color = '#ffffff'
+      return (
+        <CupertinoPageScaffold
+          navigationBar={
+            <CupertinoNavigationBar
+              middle={
+                <Text>${appName}</Text>
+              }
+              backgroundColor={backgroundColor}
+            />
           }
-        />
-      }
-    >
-      <Center>
-        <Text>Welcome to Scripting!</Text>
-      </Center>
-    </CupertinoPageScaffold>
-  )
-}
-
-const router = new Router([
-  {
-    path: '/',
-    element: <IndexPage />,
-  },
-])
-
-runApp(
-  <RouterProvider router={router} />
-)
+        >
+          <Container
+            width={'infinity'}
+            height={'infinity'}
+            color={backgroundColor}
+          >
+            <Column
+              crossAxisAlignment={'center'}
+            >
+              <ScriptingLogo />
+              <Text>Welcome to Scripting!</Text>
+            </Column>
+          </Container>
+        </CupertinoPageScaffold>
+      )
+    }
+    
+    const router = new Router([
+      {
+        path: '/',
+        element: <HomePage />,
+      },
+    ])
+    
+    runApp(
+      <RouterProvider router={router} />
+    )
+    
 `,
     'utf-8'
   )
@@ -100,17 +130,11 @@ async function createReadme(appName: string) {
     filePath,
     `# ${appName} - A Scripting application
 
-## Quick Start
-
-### Installation
-
-\`npm install\`
-
-### Start dev server
+## Start dev server
 
 \`npm run dev\`
 
-### Build App
+## Build App
 
 \`npm run build\`
 `,
@@ -168,16 +192,53 @@ async function createTSConfig(appName: string) {
   )
 }
 
-async function createScriptingDeclaration(appName: string) {
+async function copyAssets(appName: string) {
   console.log(` > Creating ${appName}/src/scripting.d.ts ...`)
-
-  const srcPath = path.join(__dirname, '../public/scripting.d.ts')
-  const destPath = path.join(getAppDir(appName), 'src/scripting.d.ts')
-
-  await copyFile(srcPath, destPath)
-
+  await copyFile(
+    path.join(__dirname, '../public/scripting.d.ts'),
+    path.join(getAppDir(appName), 'src/scripting.d.ts')
+  )
   console.log(
     chalk.green(` ✔️ Created ${appName}/src/scripting.d.ts`)
+  )
+
+  console.log(` > Creating ${appName}/src/assets.d.ts ...`)
+  await copyFile(
+    path.join(__dirname, '../public/assets.d.ts'),
+    path.join(getAppDir(appName), 'src/assets.d.ts')
+  )
+  console.log(
+    chalk.green(` ✔️ Created ${appName}/src/assets.d.ts`)
+  )
+
+  console.log(` > Creating ${appName}/src/svgs/logo.svg ...`)
+  await copyFile(
+    path.join(__dirname, '../public/logo.svg'),
+    path.join(getAppDir(appName), 'src/svgs/logo.svg')
+  )
+  console.log(
+    chalk.green(` ✔️ Created ${appName}/src/svgs/logo.svg`)
+  )
+}
+
+async function createVSCodeSettings(appName: string) {
+  const destDir = path.join(process.cwd(), '.vscode')
+
+  if (!fs.existsSync(destDir)) {
+    await mkdir(destDir)
+  }
+
+  await copyFile(
+    path.join(__dirname, '../.vscode/settings.json'),
+    path.join(getAppDir(appName), '.vscode/settings.json')
+  )
+}
+
+function installDeps(appName: string) {
+  execSync(`cd ${appName} && npm i -D ts-loader typescript file-loader`)
+
+  console.log(
+    chalk.green(` ✔️ Scripting application ${chalk.bold(appName)} created!`)
   )
 }
 
@@ -195,9 +256,17 @@ export async function createApp(appName: string) {
     await createTSConfig(appName)
     await createReadme(appName)
     await createEntryFile(appName)
-    await createScriptingDeclaration(appName)
+    await copyAssets(appName)
+    await createVSCodeSettings(appName)
 
-    // exec('npm i')
+    installDeps(appName)
+
+    console.log(
+      ` ✔️ All done! Run ${chalk.bold(
+        chalk.green('npm run dev')
+      )} to start the dev server.`
+    )
+
   } catch (e: any) {
     console.log(
       chalk.red(`✖️ Create Scripting application failed: ${e.message}`)

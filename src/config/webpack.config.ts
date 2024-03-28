@@ -1,17 +1,40 @@
-import path from 'path'
+import path from 'node:path'
+import fs from 'node:fs'
+
+import chalk from 'chalk'
 
 import TerserPlugin from 'terser-webpack-plugin'
 import webpack from 'webpack'
 
 import AppJsonPlugin from './AppJsonPlugin'
 
-const baseDir = path.resolve(__dirname, '..')
+const baseDir = process.cwd()
 const srcDir = path.resolve(baseDir, 'src')
 const buildDir = path.resolve(baseDir, 'build')
 
+const pkgPath = path.resolve(baseDir, 'package.json')
+
+if (!fs.existsSync(pkgPath)) {
+  console.log(
+    chalk.red('✖️ package.json not found.')
+  )
+  process.exit(404)
+}
+
+const pkg = JSON.parse(
+  fs.readFileSync(
+    pkgPath,
+    'utf8'
+  )
+)
+
+const entry = {
+  [pkg.name]: path.join(srcDir, 'index.tsx'),
+}
+
 const config: webpack.Configuration = {
   mode: 'production',
-  entry: path.join(srcDir, 'index.tsx'),
+  entry,
   optimization: {
     moduleIds: 'deterministic',
     chunkIds: 'named',
@@ -59,15 +82,17 @@ const config: webpack.Configuration = {
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
-    modules: ['node_modules', srcDir,],
+    modules: [
+      'node_modules',
+      srcDir,
+    ],
     alias: {
       '@': srcDir,
     }
   },
   output: {
-    // filename: 'index.js',
-    // filename: '[name]/index.js',
     filename: '[name]/[contenthash:8].js',
+    // filename: '[contenthash:8].js',
     path: buildDir,
     clean: true,
   },
@@ -75,6 +100,9 @@ const config: webpack.Configuration = {
     new AppJsonPlugin(),
   ],
   devtool: false,
+  externals: {
+    'scripting': 'Scripting',
+  }
 }
 
 export default config

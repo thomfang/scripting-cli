@@ -927,34 +927,34 @@ declare function writeAsBytes(path: string, contents: number[], options?: {
   flush?: boolean;
 }): Promise<void>;
 
-type index$1_Encoding = Encoding;
-type index$1_FileMode = FileMode;
-type index$1_FileStat = FileStat;
-type index$1_FileSystemCommonEventDetails = FileSystemCommonEventDetails;
-type index$1_FileSystemCreateEventDetails = FileSystemCreateEventDetails;
-type index$1_FileSystemDeleteEventDetails = FileSystemDeleteEventDetails;
-type index$1_FileSystemEvent = FileSystemEvent;
-declare const index$1_FileSystemEvent: typeof FileSystemEvent;
-type index$1_FileSystemEventDetails = FileSystemEventDetails;
-type index$1_FileSystemModifyEventDetails = FileSystemModifyEventDetails;
-type index$1_FileSystemMoveEventDetails = FileSystemMoveEventDetails;
-declare const index$1_copyFile: typeof copyFile;
-declare const index$1_createDirectory: typeof createDirectory;
-declare const index$1_createLink: typeof createLink;
-declare const index$1_documentsDirectory: typeof documentsDirectory;
-declare const index$1_exists: typeof exists;
-declare const index$1_isDirectory: typeof isDirectory;
-declare const index$1_isFile: typeof isFile;
-declare const index$1_readAsBytes: typeof readAsBytes;
-declare const index$1_readAsString: typeof readAsString;
-declare const index$1_readDirectory: typeof readDirectory;
-declare const index$1_rename: typeof rename;
-declare const index$1_temporaryDirectory: typeof temporaryDirectory;
-declare const index$1_watch: typeof watch;
-declare const index$1_writeAsBytes: typeof writeAsBytes;
-declare const index$1_writeAsString: typeof writeAsString;
-declare namespace index$1 {
-export { type index$1_Encoding as Encoding, type index$1_FileMode as FileMode, type index$1_FileStat as FileStat, type index$1_FileSystemCommonEventDetails as FileSystemCommonEventDetails, type index$1_FileSystemCreateEventDetails as FileSystemCreateEventDetails, type index$1_FileSystemDeleteEventDetails as FileSystemDeleteEventDetails, index$1_FileSystemEvent as FileSystemEvent, type index$1_FileSystemEventDetails as FileSystemEventDetails, type index$1_FileSystemModifyEventDetails as FileSystemModifyEventDetails, type index$1_FileSystemMoveEventDetails as FileSystemMoveEventDetails, index$1_copyFile as copyFile, index$1_createDirectory as createDirectory, index$1_createLink as createLink, index$1_documentsDirectory as documentsDirectory, index$1_exists as exists, index$1_isDirectory as isDirectory, index$1_isFile as isFile, index$1_readAsBytes as readAsBytes, index$1_readAsString as readAsString, index$1_readDirectory as readDirectory, remove$1 as remove, index$1_rename as rename, index$1_temporaryDirectory as temporaryDirectory, index$1_watch as watch, index$1_writeAsBytes as writeAsBytes, index$1_writeAsString as writeAsString };
+type index_Encoding = Encoding;
+type index_FileMode = FileMode;
+type index_FileStat = FileStat;
+type index_FileSystemCommonEventDetails = FileSystemCommonEventDetails;
+type index_FileSystemCreateEventDetails = FileSystemCreateEventDetails;
+type index_FileSystemDeleteEventDetails = FileSystemDeleteEventDetails;
+type index_FileSystemEvent = FileSystemEvent;
+declare const index_FileSystemEvent: typeof FileSystemEvent;
+type index_FileSystemEventDetails = FileSystemEventDetails;
+type index_FileSystemModifyEventDetails = FileSystemModifyEventDetails;
+type index_FileSystemMoveEventDetails = FileSystemMoveEventDetails;
+declare const index_copyFile: typeof copyFile;
+declare const index_createDirectory: typeof createDirectory;
+declare const index_createLink: typeof createLink;
+declare const index_documentsDirectory: typeof documentsDirectory;
+declare const index_exists: typeof exists;
+declare const index_isDirectory: typeof isDirectory;
+declare const index_isFile: typeof isFile;
+declare const index_readAsBytes: typeof readAsBytes;
+declare const index_readAsString: typeof readAsString;
+declare const index_readDirectory: typeof readDirectory;
+declare const index_rename: typeof rename;
+declare const index_temporaryDirectory: typeof temporaryDirectory;
+declare const index_watch: typeof watch;
+declare const index_writeAsBytes: typeof writeAsBytes;
+declare const index_writeAsString: typeof writeAsString;
+declare namespace index {
+export { type index_Encoding as Encoding, type index_FileMode as FileMode, type index_FileStat as FileStat, type index_FileSystemCommonEventDetails as FileSystemCommonEventDetails, type index_FileSystemCreateEventDetails as FileSystemCreateEventDetails, type index_FileSystemDeleteEventDetails as FileSystemDeleteEventDetails, index_FileSystemEvent as FileSystemEvent, type index_FileSystemEventDetails as FileSystemEventDetails, type index_FileSystemModifyEventDetails as FileSystemModifyEventDetails, type index_FileSystemMoveEventDetails as FileSystemMoveEventDetails, index_copyFile as copyFile, index_createDirectory as createDirectory, index_createLink as createLink, index_documentsDirectory as documentsDirectory, index_exists as exists, index_isDirectory as isDirectory, index_isFile as isFile, index_readAsBytes as readAsBytes, index_readAsString as readAsString, index_readDirectory as readDirectory, remove$1 as remove, index_rename as rename, index_temporaryDirectory as temporaryDirectory, index_watch as watch, index_writeAsBytes as writeAsBytes, index_writeAsString as writeAsString };
 }
 
 declare function hapticFeedback(type: 'heavyImpact' | 'lightImpact' | 'mediumImpact' | 'selectionClick'): void;
@@ -1255,6 +1255,10 @@ declare function loadBytes(options: {
   noCache?: boolean;
   timeout?: number;
   debugLabel?: string;
+  headers?: {
+      [key: string]: any;
+  };
+  cancelToken?: CancelToken;
 }): Promise<number[] | null>;
 
 declare function loadFont(options: {
@@ -1268,6 +1272,13 @@ declare function loadJson<T>(options: {
   noCache?: boolean;
   timeout?: number;
   debugLabel?: string;
+  headers?: {
+      [key: string]: any;
+  };
+  queryParameters?: {
+      [key: string]: any;
+  };
+  cancelToken?: CancelToken;
 }): Promise<T | null>;
 
 declare function loadString<T>(options: {
@@ -1275,13 +1286,96 @@ declare function loadString<T>(options: {
   noCache?: boolean;
   timeout?: number;
   debugLabel?: string;
+  headers?: {
+      [key: string]: any;
+  };
+  queryParameters?: {
+      [key: string]: any;
+  };
+  cancelToken?: CancelToken;
 }): Promise<T | null>;
+
+type RequestOptions = {
+  url: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD' | 'PATCH';
+  data?: any;
+  isFormData?: boolean;
+  contentType?: string;
+  responseType?: 'json' | 'plain' | 'bytes';
+  sendTimeout?: number;
+  receiveTimeout?: number;
+  connectTimeout?: number;
+  cancelToken?: CancelToken;
+  queryParameters?: {
+      [key: string]: any;
+  };
+  preserveHeaderCase?: boolean;
+  debugLabel?: string;
+};
+declare function fetch<T>(options: RequestOptions): Promise<T>;
+
+type MultipartFileOptions = {
+  filename?: string;
+  headers?: {
+      [key: string]: string[];
+  };
+};
+declare class MultipartFile {
+  type: string;
+  value: string | number[];
+  filename?: string | undefined;
+  headers?: {
+      [key: string]: string[];
+  } | undefined;
+  static fromBytes(bytes: number[], options?: MultipartFileOptions): MultipartFile;
+  static fromFile(filePath: string, options?: MultipartFileOptions): MultipartFile;
+  static fromString(string: string, options?: MultipartFileOptions): MultipartFile;
+  constructor(type: string, value: string | number[], filename?: string | undefined, headers?: {
+      [key: string]: string[];
+  } | undefined);
+  toJson(): {
+      type: string;
+      value: string | number[];
+      filename: string | undefined;
+      headers: {
+          [key: string]: string[];
+      } | undefined;
+  };
+}
+declare class FormData {
+  private _fields;
+  constructor();
+  static fromMap(map: {
+      [name: string]: string | string[] | MultipartFile | MultipartFile[];
+  }): FormData;
+  static getValue(formData: FormData): {
+      [name: string]: any;
+  };
+}
+/**
+* Example:
+*  ```ts
+* postFormData({
+*    url: 'https://example.com/api/upload-avatar',
+*    data: FormData.fromMap({
+*      file: MultipartFile.fromFile('/xx/file/path', {
+*        filename: 'avatar.png'
+*      }),
+*      destDir: '/avatar'
+*    })
+*  })
+* ```
+*/
+declare function postFormData<T>(options: RequestOptions & {
+  data: FormData;
+}): Promise<T>;
 
 declare const Request: {
   loadString: typeof loadString;
   loadJson: typeof loadJson;
   loadBytes: typeof loadBytes;
   loadFont: typeof loadFont;
+  postFormData: typeof postFormData;
 };
 
 type SocketIOOptions = {};
@@ -3076,387 +3170,6 @@ type WrapProps = {
 };
 declare const Wrap: FunctionComponent<WrapProps>;
 
-declare const index_AbsorbPointer: typeof AbsorbPointer;
-type index_AbsorbPointerProps = AbsorbPointerProps;
-type index_AixsDirection = AixsDirection;
-type index_Alignment = Alignment;
-declare const index_AnimatedAlign: typeof AnimatedAlign;
-type index_AnimatedAlignProps = AnimatedAlignProps;
-declare const index_AnimatedContainer: typeof AnimatedContainer;
-type index_AnimatedContainerProps = AnimatedContainerProps;
-declare const index_AnimatedOpacity: typeof AnimatedOpacity;
-type index_AnimatedOpacityProps = AnimatedOpacityProps;
-declare const index_AnimatedPadding: typeof AnimatedPadding;
-type index_AnimatedPaddingProps = AnimatedPaddingProps;
-declare const index_AnimatedPositioned: typeof AnimatedPositioned;
-type index_AnimatedPositionedProps = AnimatedPositionedProps;
-declare const index_AnimatedRotation: typeof AnimatedRotation;
-type index_AnimatedRotationProps = AnimatedRotationProps;
-declare const index_AnimatedScale: typeof AnimatedScale;
-type index_AnimatedScaleProps = AnimatedScaleProps;
-declare const index_AnimatedSize: typeof AnimatedSize;
-type index_AnimatedSizeProps = AnimatedSizeProps;
-declare const index_AnimatedSlide: typeof AnimatedSlide;
-type index_AnimatedSlideProps = AnimatedSlideProps;
-type index_AnimationControllerIntialOptions = AnimationControllerIntialOptions;
-type index_AnimationInitalOptions<T extends AnimationValue> = AnimationInitalOptions<T>;
-type index_AnimationStatus = AnimationStatus;
-type index_AnimationStatusListener = AnimationStatusListener;
-type index_AnimationValue = AnimationValue;
-declare const index_AspectRatio: typeof AspectRatio;
-type index_AspectRatioProps = AspectRatioProps;
-declare const index_AutoSizeText: typeof AutoSizeText;
-type index_AutoSizeTextProps = AutoSizeTextProps;
-type index_Axis = Axis;
-declare const index_BackdropFilter: typeof BackdropFilter;
-type index_BackdropFilterProps = BackdropFilterProps;
-declare const index_Baseline: typeof Baseline;
-type index_BaselineProps = BaselineProps;
-type index_BlendMode = BlendMode;
-type index_BlurStyle = BlurStyle;
-type index_BorderRadius = BorderRadius;
-type index_BorderSide = BorderSide;
-declare const index_BottomNavigationBarItem: typeof BottomNavigationBarItem;
-type index_BottomNavigationBarItemProps = BottomNavigationBarItemProps;
-type index_BoxConstraints = BoxConstraints;
-type index_BoxDecoration = BoxDecoration;
-type index_BoxFit = BoxFit;
-type index_BoxShadow = BoxShadow;
-type index_Brightness = Brightness;
-declare const index_CSSFilter: typeof CSSFilter;
-type index_CSSFilterMatrix = CSSFilterMatrix;
-declare const index_CSSFilterPresets: typeof CSSFilterPresets;
-type index_CSSFilterPresetsEffect = CSSFilterPresetsEffect;
-type index_CSSFilterPresetsProps = CSSFilterPresetsProps;
-type index_CSSFilterProps = CSSFilterProps;
-declare const index_Center: typeof Center;
-type index_CenterProps = CenterProps;
-declare const index_CircularProgressIndicator: typeof CircularProgressIndicator;
-type index_CircularProgressIndicatorProps = CircularProgressIndicatorProps;
-type index_Clip = Clip;
-declare const index_ClipOval: typeof ClipOval;
-type index_ClipOvalProps = ClipOvalProps;
-declare const index_ClipRRect: typeof ClipRRect;
-type index_ClipRRectProps = ClipRRectProps;
-declare const index_ClipRect: typeof ClipRect;
-type index_ClipRectProps = ClipRectProps;
-type index_Color = Color;
-declare const index_Column: typeof Column;
-type index_ColumnProps = ColumnProps;
-declare const index_CompositedTransformFollower: typeof CompositedTransformFollower;
-type index_CompositedTransformFollowerProps = CompositedTransformFollowerProps;
-declare const index_CompositedTransformTarget: typeof CompositedTransformTarget;
-type index_CompositedTransformTargetProps = CompositedTransformTargetProps;
-declare const index_ConstrainedBox: typeof ConstrainedBox;
-type index_ConstrainedBoxProps = ConstrainedBoxProps;
-declare const index_Container: typeof Container;
-type index_ContainerProps = ContainerProps;
-type index_CrossAxisAlignment = CrossAxisAlignment;
-declare const index_CupertinoActionSheet: typeof CupertinoActionSheet;
-declare const index_CupertinoActionSheetAction: typeof CupertinoActionSheetAction;
-type index_CupertinoActionSheetActionProps = CupertinoActionSheetActionProps;
-type index_CupertinoActionSheetProps = CupertinoActionSheetProps;
-declare const index_CupertinoActivityIndicator: typeof CupertinoActivityIndicator;
-type index_CupertinoActivityIndicatorProps = CupertinoActivityIndicatorProps;
-declare const index_CupertinoAlertDialog: typeof CupertinoAlertDialog;
-type index_CupertinoAlertDialogProps = CupertinoAlertDialogProps;
-declare const index_CupertinoButton: typeof CupertinoButton;
-type index_CupertinoButtonProps = CupertinoButtonProps;
-declare const index_CupertinoContextMenu: typeof CupertinoContextMenu;
-declare const index_CupertinoContextMenuAction: typeof CupertinoContextMenuAction;
-type index_CupertinoContextMenuActionProps = CupertinoContextMenuActionProps;
-type index_CupertinoContextMenuProps = CupertinoContextMenuProps;
-declare const index_CupertinoDatePicker: typeof CupertinoDatePicker;
-type index_CupertinoDatePickerMode = CupertinoDatePickerMode;
-type index_CupertinoDatePickerProps = CupertinoDatePickerProps;
-declare const index_CupertinoDialogAction: typeof CupertinoDialogAction;
-type index_CupertinoDialogActionProps = CupertinoDialogActionProps;
-declare const index_CupertinoFormRow: typeof CupertinoFormRow;
-type index_CupertinoFormRowProps = CupertinoFormRowProps;
-declare const index_CupertinoFormSection: typeof CupertinoFormSection;
-type index_CupertinoFormSectionProps = CupertinoFormSectionProps;
-type index_CupertinoIcons = CupertinoIcons;
-declare const index_CupertinoListSection: typeof CupertinoListSection;
-type index_CupertinoListSectionProps = CupertinoListSectionProps;
-declare const index_CupertinoListTile: typeof CupertinoListTile;
-declare const index_CupertinoListTileChevron: typeof CupertinoListTileChevron;
-type index_CupertinoListTileProps = CupertinoListTileProps;
-declare const index_CupertinoNavigationBar: typeof CupertinoNavigationBar;
-declare const index_CupertinoNavigationBarBackButton: typeof CupertinoNavigationBarBackButton;
-type index_CupertinoNavigationBarBackButtonProps = CupertinoNavigationBarBackButtonProps;
-type index_CupertinoNavigationBarProps = CupertinoNavigationBarProps;
-declare const index_CupertinoPageScaffold: typeof CupertinoPageScaffold;
-type index_CupertinoPageScaffoldProps = CupertinoPageScaffoldProps;
-declare const index_CupertinoPicker: typeof CupertinoPicker;
-declare const index_CupertinoPickerDefaultSelectionOverlay: typeof CupertinoPickerDefaultSelectionOverlay;
-type index_CupertinoPickerDefaultSelectionOverlayProps = CupertinoPickerDefaultSelectionOverlayProps;
-type index_CupertinoPickerProps = CupertinoPickerProps;
-declare const index_CupertinoScrollerBar: typeof CupertinoScrollerBar;
-type index_CupertinoScrollerBarProps = CupertinoScrollerBarProps;
-declare const index_CupertinoSearchTextField: typeof CupertinoSearchTextField;
-type index_CupertinoSearchTextFieldProps = CupertinoSearchTextFieldProps;
-declare const index_CupertinoSegmentedControl: typeof CupertinoSegmentedControl;
-type index_CupertinoSegmentedControlProps = CupertinoSegmentedControlProps;
-declare const index_CupertinoSlider: typeof CupertinoSlider;
-type index_CupertinoSliderProps = CupertinoSliderProps;
-declare const index_CupertinoSlidingSegmentedControl: typeof CupertinoSlidingSegmentedControl;
-type index_CupertinoSlidingSegmentedControlProps = CupertinoSlidingSegmentedControlProps;
-declare const index_CupertinoSliverNavigationBar: typeof CupertinoSliverNavigationBar;
-type index_CupertinoSliverNavigationBarProps = CupertinoSliverNavigationBarProps;
-declare const index_CupertinoSliverRefreshControl: typeof CupertinoSliverRefreshControl;
-type index_CupertinoSliverRefreshControlProps = CupertinoSliverRefreshControlProps;
-declare const index_CupertinoSwitch: typeof CupertinoSwitch;
-type index_CupertinoSwitchProps = CupertinoSwitchProps;
-declare const index_CupertinoTabBar: typeof CupertinoTabBar;
-type index_CupertinoTabBarProps = CupertinoTabBarProps;
-declare const index_CupertinoTextField: typeof CupertinoTextField;
-type index_CupertinoTextFieldProps = CupertinoTextFieldProps;
-declare const index_CupertinoTimerPicker: typeof CupertinoTimerPicker;
-type index_CupertinoTimerPickerMode = CupertinoTimerPickerMode;
-type index_CupertinoTimerPickerProps = CupertinoTimerPickerProps;
-type index_Curve = Curve;
-declare const index_CustomScrollView: typeof CustomScrollView;
-type index_CustomScrollViewProps = CustomScrollViewProps;
-type index_DatePickerDateOrder = DatePickerDateOrder;
-declare const index_DefaultTabController: typeof DefaultTabController;
-type index_DefaultTabControllerProps = DefaultTabControllerProps;
-declare const index_DefaultTextStyle: typeof DefaultTextStyle;
-type index_DefaultTextStyleProps = DefaultTextStyleProps;
-type index_DismissDirection = DismissDirection;
-declare const index_Dismissable: typeof Dismissable;
-type index_DismissableProps = DismissableProps;
-declare const index_DottedBorder: typeof DottedBorder;
-type index_DottedBorderProps = DottedBorderProps;
-declare const index_DottedLine: typeof DottedLine;
-type index_DottedLineProps = DottedLineProps;
-type index_DragDownDetails = DragDownDetails;
-type index_DragEndDetails = DragEndDetails;
-type index_DragUpdateDetails = DragUpdateDetails;
-type index_EdgeInsets = EdgeInsets;
-type index_EdgeInsetsDirectional = EdgeInsetsDirectional;
-type index_EventPosition = EventPosition;
-declare const index_Expanded: typeof Expanded;
-type index_ExpandedProps = ExpandedProps;
-type index_FilterQuality = FilterQuality;
-declare const index_FittedBox: typeof FittedBox;
-type index_FittedBoxProps = FittedBoxProps;
-type index_FontStyle = FontStyle;
-type index_FontWeight = FontWeight;
-declare const index_GestureDetector: typeof GestureDetector;
-type index_GestureDetectorProps = GestureDetectorProps;
-declare const index_Gif: typeof Gif;
-type index_GifProps = GifProps;
-type index_GridDelegateWithFixedCrossAxisCount = GridDelegateWithFixedCrossAxisCount;
-type index_GridDelegateWithMaxCrossAxisExtent = GridDelegateWithMaxCrossAxisExtent;
-declare const index_GridView: typeof GridView;
-type index_GridViewCommonProps = GridViewCommonProps;
-type index_GridViewFixedCrossAxisCountProps = GridViewFixedCrossAxisCountProps;
-type index_GridViewMaxCrossAxisExtentProps = GridViewMaxCrossAxisExtentProps;
-type index_GridViewProps = GridViewProps;
-declare const index_Hero: typeof Hero;
-type index_HeroProps = HeroProps;
-declare const index_Icon: typeof Icon;
-type index_IconProps = IconProps;
-declare const index_IgnorePointer: typeof IgnorePointer;
-type index_IgnorePointerProps = IgnorePointerProps;
-declare const index_Image: typeof Image;
-type index_ImageByteFormat = ImageByteFormat;
-type index_ImageFilter = ImageFilter;
-type index_ImageFilterBlur = ImageFilterBlur;
-type index_ImageFilterCompose = ImageFilterCompose;
-type index_ImageFilterDilate = ImageFilterDilate;
-type index_ImageFilterErode = ImageFilterErode;
-type index_ImageFilterMaxtrix = ImageFilterMaxtrix;
-type index_ImageProps = ImageProps;
-type index_ImageRepeat = ImageRepeat;
-declare const index_IndexedStack: typeof IndexedStack;
-type index_IndexedStackProps = IndexedStackProps;
-declare const index_InkWell: typeof InkWell;
-type index_InkWellProps = InkWellProps;
-type index_IntervalCurve = IntervalCurve;
-declare const index_IntrinsicHeight: typeof IntrinsicHeight;
-type index_IntrinsicHeightProps = IntrinsicHeightProps;
-declare const index_IntrinsicWidth: typeof IntrinsicWidth;
-type index_IntrinsicWidthProps = IntrinsicWidthProps;
-type index_KeyProps = KeyProps;
-type index_LayerLink = LayerLink;
-declare const index_LayerLink: typeof LayerLink;
-type index_LinearGradient = LinearGradient;
-declare const index_LinearProgressIndicator: typeof LinearProgressIndicator;
-type index_LinearProgressIndicatorProps = LinearProgressIndicatorProps;
-declare const index_ListView: typeof ListView;
-type index_ListViewProps = ListViewProps;
-type index_MainAxisAlignment = MainAxisAlignment;
-type index_MainAxisSize = MainAxisSize;
-declare const index_Material: typeof Material;
-type index_MaterialProps = MaterialProps;
-declare const index_Navigator: typeof Navigator;
-type index_NavigatorProps = NavigatorProps;
-type index_NavigatorRef = NavigatorRef;
-declare const index_NestedScrollView: typeof NestedScrollView;
-type index_NestedScrollViewProps = NestedScrollViewProps;
-declare const index_NetworkImage: typeof NetworkImage;
-type index_NetworkImageProps = NetworkImageProps;
-type index_NormalCurve = NormalCurve;
-type index_Offset = Offset;
-declare const index_Opacity: typeof Opacity;
-type index_OpacityProps = OpacityProps;
-type index_OverScrollNotification = OverScrollNotification;
-declare const index_OverflowBox: typeof OverflowBox;
-type index_OverflowBoxProps = OverflowBoxProps;
-declare const index_Overlay: typeof Overlay;
-type index_OverlayProps = OverlayProps;
-type index_OverlayVisibilityMode = OverlayVisibilityMode;
-declare const index_Padding: typeof Padding;
-type index_PaddingProps = PaddingProps;
-declare const index_PageView: typeof PageView;
-type index_PageViewProps = PageViewProps;
-type index_PaintRect = PaintRect;
-type index_PaintSize = PaintSize;
-declare const index_PopScope: typeof PopScope;
-type index_PopScopeProps = PopScopeProps;
-declare const index_Positioned: typeof Positioned;
-type index_PositionedProps = PositionedProps;
-declare const index_QrImage: typeof QrImage;
-type index_QrImageProps = QrImageProps;
-type index_RadialGradient = RadialGradient;
-type index_RefProps<T extends RenderObject = RenderObject> = RefProps<T>;
-declare const index_RefreshIndicator: typeof RefreshIndicator;
-type index_RefreshIndicatorProps = RefreshIndicatorProps;
-type index_RelativeRect = RelativeRect;
-declare const index_ReorderableListView: typeof ReorderableListView;
-type index_ReorderableListViewProps = ReorderableListViewProps;
-declare const index_RepaintBoundary: typeof RepaintBoundary;
-type index_RepaintBoundaryProps = RepaintBoundaryProps;
-type index_RepaintBoundaryRef = RepaintBoundaryRef;
-declare const index_RichText: typeof RichText;
-type index_RichTextProps = RichTextProps;
-declare const index_RotatedBox: typeof RotatedBox;
-type index_RotatedBoxProps = RotatedBoxProps;
-declare const index_Row: typeof Row;
-type index_RowProps = RowProps;
-declare const index_SafeArea: typeof SafeArea;
-type index_SafeAreaProps = SafeAreaProps;
-type index_ScaleEndDetails = ScaleEndDetails;
-type index_ScaleStartDetails = ScaleStartDetails;
-type index_ScaleUpdateDetails = ScaleUpdateDetails;
-type index_ScrollEndNotification = ScrollEndNotification;
-type index_ScrollMetrics = ScrollMetrics;
-type index_ScrollNotification = ScrollNotification;
-declare const index_ScrollNotificationListener: typeof ScrollNotificationListener;
-type index_ScrollNotificationListenerProps = ScrollNotificationListenerProps;
-type index_ScrollOrientation = ScrollOrientation;
-type index_ScrollPhysics = ScrollPhysics;
-type index_ScrollStartNotification = ScrollStartNotification;
-type index_ScrollUpdateNotification = ScrollUpdateNotification;
-type index_ScrollViewKeyboardDismissBehavior = ScrollViewKeyboardDismissBehavior;
-declare const index_Scrollbar: typeof Scrollbar;
-type index_ScrollbarProps = ScrollbarProps;
-declare const index_SingleChildScrollView: typeof SingleChildScrollView;
-type index_SingleChildScrollViewProps = SingleChildScrollViewProps;
-declare const index_SizedBox: typeof SizedBox;
-type index_SizedBoxProps = SizedBoxProps;
-declare const index_SliverFillRemaining: typeof SliverFillRemaining;
-type index_SliverFillRemainingProps = SliverFillRemainingProps;
-declare const index_SliverFixedHeightPersistentHeader: typeof SliverFixedHeightPersistentHeader;
-type index_SliverFixedHeightPersistentHeaderProps = SliverFixedHeightPersistentHeaderProps;
-declare const index_SliverToBoxAdapter: typeof SliverToBoxAdapter;
-type index_SliverToBoxAdapterProps = SliverToBoxAdapterProps;
-declare const index_Spacer: typeof Spacer;
-type index_SpacerProps = SpacerProps;
-declare const index_Stack: typeof Stack;
-type index_StackFit = StackFit;
-type index_StackProps = StackProps;
-declare const index_StickyHeader: typeof StickyHeader;
-type index_StickyHeaderProps = StickyHeaderProps;
-declare const index_StringSvg: typeof StringSvg;
-type index_StringSvgProps = StringSvgProps;
-type index_StrokeCap = StrokeCap;
-type index_StrutStyle = StrutStyle;
-declare const index_Svg: typeof Svg;
-type index_SvgProps = SvgProps;
-declare const index_Swiper: typeof Swiper;
-declare const index_SwiperPagination: typeof SwiperPagination;
-type index_SwiperPaginationProps = SwiperPaginationProps;
-type index_SwiperProps = SwiperProps;
-declare const index_Switch: typeof Switch;
-type index_SwitchProps = SwitchProps;
-type index_TabAlignment = TabAlignment;
-declare const index_TabBar: typeof TabBar;
-type index_TabBarIndicatorSize = TabBarIndicatorSize;
-type index_TabBarProps = TabBarProps;
-declare const index_TabBarView: typeof TabBarView;
-type index_TabBarViewProps = TabBarViewProps;
-type index_TabController = TabController;
-declare const index_TabController: typeof TabController;
-declare const index_TabControllerConsumer: typeof TabControllerConsumer;
-declare const index_TabControllerContext: typeof TabControllerContext;
-type index_TabControllerProps = TabControllerProps;
-declare const index_TabControllerProvider: typeof TabControllerProvider;
-type index_TabControllerRef = TabControllerRef;
-type index_TabControllerRenderNode = TabControllerRenderNode;
-type index_TapDownDetails = TapDownDetails;
-type index_TapUpDetails = TapUpDetails;
-declare const index_Text: typeof Text;
-type index_TextAlign = TextAlign;
-type index_TextBaseLine = TextBaseLine;
-type index_TextDecoration = TextDecoration;
-type index_TextDecorationStyle = TextDecorationStyle;
-type index_TextDirection = TextDirection;
-declare const index_TextField: typeof TextField;
-type index_TextFieldProps = TextFieldProps;
-type index_TextHeightBehavior = TextHeightBehavior;
-type index_TextInputType = TextInputType;
-type index_TextLeadingDistribution = TextLeadingDistribution;
-type index_TextOverflow = TextOverflow;
-type index_TextProps = TextProps;
-declare const index_TextSpan: typeof TextSpan;
-type index_TextSpanProps = TextSpanProps;
-type index_TextStyle = TextStyle;
-type index_TextWidthBasis = TextWidthBasis;
-type index_Ticker = Ticker;
-declare const index_Ticker: typeof Ticker;
-type index_TickerManager = TickerManager;
-declare const index_TickerManager: typeof TickerManager;
-declare const index_TickerManagerConsumer: typeof TickerManagerConsumer;
-declare const index_TickerManagerProvider: typeof TickerManagerProvider;
-type index_TickerManagerProviderProps = TickerManagerProviderProps;
-type index_TickerManagerRef = TickerManagerRef;
-type index_TileMode = TileMode;
-declare const index_TransformRotate: typeof TransformRotate;
-type index_TransformRotateProps = TransformRotateProps;
-declare const index_TransformScale: typeof TransformScale;
-type index_TransformScaleProps = TransformScaleProps;
-declare const index_TransformTranslate: typeof TransformTranslate;
-type index_TransformTranslateProps = TransformTranslateProps;
-type index_Tween<T extends AnimationValue> = Tween<T>;
-type index_TweenSequence<T extends AnimationValue> = TweenSequence<T>;
-type index_TweenSequenceConstantItem<T extends AnimationValue> = TweenSequenceConstantItem<T>;
-type index_TweenSequenceItem<T extends AnimationValue> = TweenSequenceItem<T>;
-type index_TweenType = TweenType;
-declare const index_UnconstrainedBox: typeof UnconstrainedBox;
-type index_UnconstrainedBoxProps = UnconstrainedBoxProps;
-type index_UserScrollNotification = UserScrollNotification;
-type index_Velocity = Velocity;
-type index_VerticalDirection = VerticalDirection;
-declare const index_WebView: typeof WebView;
-type index_WebViewController = WebViewController;
-declare const index_WebViewController: typeof WebViewController;
-type index_WebViewProps = WebViewProps;
-type index_WebViewSettings = WebViewSettings;
-declare const index_Wrap: typeof Wrap;
-type index_WrapAlignment = WrapAlignment;
-type index_WrapCrossAlignment = WrapCrossAlignment;
-type index_WrapProps = WrapProps;
-declare const index_useAnimationController: typeof useAnimationController;
-declare const index_useLayerLink: typeof useLayerLink;
-declare const index_useNavigator: typeof useNavigator;
-declare const index_useTabController: typeof useTabController;
-declare const index_useTickerManager: typeof useTickerManager;
-declare namespace index {
-export { index_AbsorbPointer as AbsorbPointer, type index_AbsorbPointerProps as AbsorbPointerProps, type index_AixsDirection as AixsDirection, type index_Alignment as Alignment, index_AnimatedAlign as AnimatedAlign, type index_AnimatedAlignProps as AnimatedAlignProps, index_AnimatedContainer as AnimatedContainer, type index_AnimatedContainerProps as AnimatedContainerProps, index_AnimatedOpacity as AnimatedOpacity, type index_AnimatedOpacityProps as AnimatedOpacityProps, index_AnimatedPadding as AnimatedPadding, type index_AnimatedPaddingProps as AnimatedPaddingProps, index_AnimatedPositioned as AnimatedPositioned, type index_AnimatedPositionedProps as AnimatedPositionedProps, index_AnimatedRotation as AnimatedRotation, type index_AnimatedRotationProps as AnimatedRotationProps, index_AnimatedScale as AnimatedScale, type index_AnimatedScaleProps as AnimatedScaleProps, index_AnimatedSize as AnimatedSize, type index_AnimatedSizeProps as AnimatedSizeProps, index_AnimatedSlide as AnimatedSlide, type index_AnimatedSlideProps as AnimatedSlideProps, type index_AnimationControllerIntialOptions as AnimationControllerIntialOptions, type index_AnimationInitalOptions as AnimationInitalOptions, type index_AnimationStatus as AnimationStatus, type index_AnimationStatusListener as AnimationStatusListener, type index_AnimationValue as AnimationValue, index_AspectRatio as AspectRatio, type index_AspectRatioProps as AspectRatioProps, index_AutoSizeText as AutoSizeText, type index_AutoSizeTextProps as AutoSizeTextProps, type index_Axis as Axis, index_BackdropFilter as BackdropFilter, type index_BackdropFilterProps as BackdropFilterProps, index_Baseline as Baseline, type index_BaselineProps as BaselineProps, type index_BlendMode as BlendMode, type index_BlurStyle as BlurStyle, type index_BorderRadius as BorderRadius, type index_BorderSide as BorderSide, index_BottomNavigationBarItem as BottomNavigationBarItem, type index_BottomNavigationBarItemProps as BottomNavigationBarItemProps, type index_BoxConstraints as BoxConstraints, type index_BoxDecoration as BoxDecoration, type index_BoxFit as BoxFit, type index_BoxShadow as BoxShadow, type index_Brightness as Brightness, index_CSSFilter as CSSFilter, type index_CSSFilterMatrix as CSSFilterMatrix, index_CSSFilterPresets as CSSFilterPresets, type index_CSSFilterPresetsEffect as CSSFilterPresetsEffect, type index_CSSFilterPresetsProps as CSSFilterPresetsProps, type index_CSSFilterProps as CSSFilterProps, index_Center as Center, type index_CenterProps as CenterProps, index_CircularProgressIndicator as CircularProgressIndicator, type index_CircularProgressIndicatorProps as CircularProgressIndicatorProps, type index_Clip as Clip, index_ClipOval as ClipOval, type index_ClipOvalProps as ClipOvalProps, index_ClipRRect as ClipRRect, type index_ClipRRectProps as ClipRRectProps, index_ClipRect as ClipRect, type index_ClipRectProps as ClipRectProps, type index_Color as Color, index_Column as Column, type index_ColumnProps as ColumnProps, index_CompositedTransformFollower as CompositedTransformFollower, type index_CompositedTransformFollowerProps as CompositedTransformFollowerProps, index_CompositedTransformTarget as CompositedTransformTarget, type index_CompositedTransformTargetProps as CompositedTransformTargetProps, index_ConstrainedBox as ConstrainedBox, type index_ConstrainedBoxProps as ConstrainedBoxProps, index_Container as Container, type index_ContainerProps as ContainerProps, type index_CrossAxisAlignment as CrossAxisAlignment, index_CupertinoActionSheet as CupertinoActionSheet, index_CupertinoActionSheetAction as CupertinoActionSheetAction, type index_CupertinoActionSheetActionProps as CupertinoActionSheetActionProps, type index_CupertinoActionSheetProps as CupertinoActionSheetProps, index_CupertinoActivityIndicator as CupertinoActivityIndicator, type index_CupertinoActivityIndicatorProps as CupertinoActivityIndicatorProps, index_CupertinoAlertDialog as CupertinoAlertDialog, type index_CupertinoAlertDialogProps as CupertinoAlertDialogProps, index_CupertinoButton as CupertinoButton, type index_CupertinoButtonProps as CupertinoButtonProps, index_CupertinoContextMenu as CupertinoContextMenu, index_CupertinoContextMenuAction as CupertinoContextMenuAction, type index_CupertinoContextMenuActionProps as CupertinoContextMenuActionProps, type index_CupertinoContextMenuProps as CupertinoContextMenuProps, index_CupertinoDatePicker as CupertinoDatePicker, type index_CupertinoDatePickerMode as CupertinoDatePickerMode, type index_CupertinoDatePickerProps as CupertinoDatePickerProps, index_CupertinoDialogAction as CupertinoDialogAction, type index_CupertinoDialogActionProps as CupertinoDialogActionProps, index_CupertinoFormRow as CupertinoFormRow, type index_CupertinoFormRowProps as CupertinoFormRowProps, index_CupertinoFormSection as CupertinoFormSection, type index_CupertinoFormSectionProps as CupertinoFormSectionProps, type index_CupertinoIcons as CupertinoIcons, index_CupertinoListSection as CupertinoListSection, type index_CupertinoListSectionProps as CupertinoListSectionProps, index_CupertinoListTile as CupertinoListTile, index_CupertinoListTileChevron as CupertinoListTileChevron, type index_CupertinoListTileProps as CupertinoListTileProps, index_CupertinoNavigationBar as CupertinoNavigationBar, index_CupertinoNavigationBarBackButton as CupertinoNavigationBarBackButton, type index_CupertinoNavigationBarBackButtonProps as CupertinoNavigationBarBackButtonProps, type index_CupertinoNavigationBarProps as CupertinoNavigationBarProps, index_CupertinoPageScaffold as CupertinoPageScaffold, type index_CupertinoPageScaffoldProps as CupertinoPageScaffoldProps, index_CupertinoPicker as CupertinoPicker, index_CupertinoPickerDefaultSelectionOverlay as CupertinoPickerDefaultSelectionOverlay, type index_CupertinoPickerDefaultSelectionOverlayProps as CupertinoPickerDefaultSelectionOverlayProps, type index_CupertinoPickerProps as CupertinoPickerProps, index_CupertinoScrollerBar as CupertinoScrollerBar, type index_CupertinoScrollerBarProps as CupertinoScrollerBarProps, index_CupertinoSearchTextField as CupertinoSearchTextField, type index_CupertinoSearchTextFieldProps as CupertinoSearchTextFieldProps, index_CupertinoSegmentedControl as CupertinoSegmentedControl, type index_CupertinoSegmentedControlProps as CupertinoSegmentedControlProps, index_CupertinoSlider as CupertinoSlider, type index_CupertinoSliderProps as CupertinoSliderProps, index_CupertinoSlidingSegmentedControl as CupertinoSlidingSegmentedControl, type index_CupertinoSlidingSegmentedControlProps as CupertinoSlidingSegmentedControlProps, index_CupertinoSliverNavigationBar as CupertinoSliverNavigationBar, type index_CupertinoSliverNavigationBarProps as CupertinoSliverNavigationBarProps, index_CupertinoSliverRefreshControl as CupertinoSliverRefreshControl, type index_CupertinoSliverRefreshControlProps as CupertinoSliverRefreshControlProps, index_CupertinoSwitch as CupertinoSwitch, type index_CupertinoSwitchProps as CupertinoSwitchProps, index_CupertinoTabBar as CupertinoTabBar, type index_CupertinoTabBarProps as CupertinoTabBarProps, index_CupertinoTextField as CupertinoTextField, type index_CupertinoTextFieldProps as CupertinoTextFieldProps, index_CupertinoTimerPicker as CupertinoTimerPicker, type index_CupertinoTimerPickerMode as CupertinoTimerPickerMode, type index_CupertinoTimerPickerProps as CupertinoTimerPickerProps, type index_Curve as Curve, index_CustomScrollView as CustomScrollView, type index_CustomScrollViewProps as CustomScrollViewProps, type index_DatePickerDateOrder as DatePickerDateOrder, index_DefaultTabController as DefaultTabController, type index_DefaultTabControllerProps as DefaultTabControllerProps, index_DefaultTextStyle as DefaultTextStyle, type index_DefaultTextStyleProps as DefaultTextStyleProps, type index_DismissDirection as DismissDirection, index_Dismissable as Dismissable, type index_DismissableProps as DismissableProps, index_DottedBorder as DottedBorder, type index_DottedBorderProps as DottedBorderProps, index_DottedLine as DottedLine, type index_DottedLineProps as DottedLineProps, type index_DragDownDetails as DragDownDetails, type index_DragEndDetails as DragEndDetails, type index_DragUpdateDetails as DragUpdateDetails, type index_EdgeInsets as EdgeInsets, type index_EdgeInsetsDirectional as EdgeInsetsDirectional, type index_EventPosition as EventPosition, index_Expanded as Expanded, type index_ExpandedProps as ExpandedProps, type index_FilterQuality as FilterQuality, index_FittedBox as FittedBox, type index_FittedBoxProps as FittedBoxProps, type index_FontStyle as FontStyle, type index_FontWeight as FontWeight, index_GestureDetector as GestureDetector, type index_GestureDetectorProps as GestureDetectorProps, index_Gif as Gif, type index_GifProps as GifProps, type index_GridDelegateWithFixedCrossAxisCount as GridDelegateWithFixedCrossAxisCount, type index_GridDelegateWithMaxCrossAxisExtent as GridDelegateWithMaxCrossAxisExtent, index_GridView as GridView, type index_GridViewCommonProps as GridViewCommonProps, type index_GridViewFixedCrossAxisCountProps as GridViewFixedCrossAxisCountProps, type index_GridViewMaxCrossAxisExtentProps as GridViewMaxCrossAxisExtentProps, type index_GridViewProps as GridViewProps, index_Hero as Hero, type index_HeroProps as HeroProps, index_Icon as Icon, type index_IconProps as IconProps, index_IgnorePointer as IgnorePointer, type index_IgnorePointerProps as IgnorePointerProps, index_Image as Image, type index_ImageByteFormat as ImageByteFormat, type index_ImageFilter as ImageFilter, type index_ImageFilterBlur as ImageFilterBlur, type index_ImageFilterCompose as ImageFilterCompose, type index_ImageFilterDilate as ImageFilterDilate, type index_ImageFilterErode as ImageFilterErode, type index_ImageFilterMaxtrix as ImageFilterMaxtrix, type index_ImageProps as ImageProps, type index_ImageRepeat as ImageRepeat, index_IndexedStack as IndexedStack, type index_IndexedStackProps as IndexedStackProps, index_InkWell as InkWell, type index_InkWellProps as InkWellProps, type index_IntervalCurve as IntervalCurve, index_IntrinsicHeight as IntrinsicHeight, type index_IntrinsicHeightProps as IntrinsicHeightProps, index_IntrinsicWidth as IntrinsicWidth, type index_IntrinsicWidthProps as IntrinsicWidthProps, type index_KeyProps as KeyProps, index_LayerLink as LayerLink, type index_LinearGradient as LinearGradient, index_LinearProgressIndicator as LinearProgressIndicator, type index_LinearProgressIndicatorProps as LinearProgressIndicatorProps, index_ListView as ListView, type index_ListViewProps as ListViewProps, type index_MainAxisAlignment as MainAxisAlignment, type index_MainAxisSize as MainAxisSize, index_Material as Material, type index_MaterialProps as MaterialProps, index_Navigator as Navigator, type index_NavigatorProps as NavigatorProps, type index_NavigatorRef as NavigatorRef, index_NestedScrollView as NestedScrollView, type index_NestedScrollViewProps as NestedScrollViewProps, index_NetworkImage as NetworkImage, type index_NetworkImageProps as NetworkImageProps, type index_NormalCurve as NormalCurve, type index_Offset as Offset, index_Opacity as Opacity, type index_OpacityProps as OpacityProps, type index_OverScrollNotification as OverScrollNotification, index_OverflowBox as OverflowBox, type index_OverflowBoxProps as OverflowBoxProps, index_Overlay as Overlay, type index_OverlayProps as OverlayProps, type index_OverlayVisibilityMode as OverlayVisibilityMode, index_Padding as Padding, type index_PaddingProps as PaddingProps, index_PageView as PageView, type index_PageViewProps as PageViewProps, type index_PaintRect as PaintRect, type index_PaintSize as PaintSize, index_PopScope as PopScope, type index_PopScopeProps as PopScopeProps, index_Positioned as Positioned, type index_PositionedProps as PositionedProps, index_QrImage as QrImage, type index_QrImageProps as QrImageProps, type index_RadialGradient as RadialGradient, type index_RefProps as RefProps, index_RefreshIndicator as RefreshIndicator, type index_RefreshIndicatorProps as RefreshIndicatorProps, type index_RelativeRect as RelativeRect, index_ReorderableListView as ReorderableListView, type index_ReorderableListViewProps as ReorderableListViewProps, index_RepaintBoundary as RepaintBoundary, type index_RepaintBoundaryProps as RepaintBoundaryProps, type index_RepaintBoundaryRef as RepaintBoundaryRef, index_RichText as RichText, type index_RichTextProps as RichTextProps, index_RotatedBox as RotatedBox, type index_RotatedBoxProps as RotatedBoxProps, index_Row as Row, type index_RowProps as RowProps, index_SafeArea as SafeArea, type index_SafeAreaProps as SafeAreaProps, type index_ScaleEndDetails as ScaleEndDetails, type index_ScaleStartDetails as ScaleStartDetails, type index_ScaleUpdateDetails as ScaleUpdateDetails, type index_ScrollEndNotification as ScrollEndNotification, type index_ScrollMetrics as ScrollMetrics, type index_ScrollNotification as ScrollNotification, index_ScrollNotificationListener as ScrollNotificationListener, type index_ScrollNotificationListenerProps as ScrollNotificationListenerProps, type index_ScrollOrientation as ScrollOrientation, type index_ScrollPhysics as ScrollPhysics, type index_ScrollStartNotification as ScrollStartNotification, type index_ScrollUpdateNotification as ScrollUpdateNotification, type index_ScrollViewKeyboardDismissBehavior as ScrollViewKeyboardDismissBehavior, index_Scrollbar as Scrollbar, type index_ScrollbarProps as ScrollbarProps, index_SingleChildScrollView as SingleChildScrollView, type index_SingleChildScrollViewProps as SingleChildScrollViewProps, index_SizedBox as SizedBox, type index_SizedBoxProps as SizedBoxProps, index_SliverFillRemaining as SliverFillRemaining, type index_SliverFillRemainingProps as SliverFillRemainingProps, index_SliverFixedHeightPersistentHeader as SliverFixedHeightPersistentHeader, type index_SliverFixedHeightPersistentHeaderProps as SliverFixedHeightPersistentHeaderProps, index_SliverToBoxAdapter as SliverToBoxAdapter, type index_SliverToBoxAdapterProps as SliverToBoxAdapterProps, index_Spacer as Spacer, type index_SpacerProps as SpacerProps, index_Stack as Stack, type index_StackFit as StackFit, type index_StackProps as StackProps, index_StickyHeader as StickyHeader, type index_StickyHeaderProps as StickyHeaderProps, index_StringSvg as StringSvg, type index_StringSvgProps as StringSvgProps, type index_StrokeCap as StrokeCap, type index_StrutStyle as StrutStyle, index_Svg as Svg, type index_SvgProps as SvgProps, index_Swiper as Swiper, index_SwiperPagination as SwiperPagination, type index_SwiperPaginationProps as SwiperPaginationProps, type index_SwiperProps as SwiperProps, index_Switch as Switch, type index_SwitchProps as SwitchProps, type index_TabAlignment as TabAlignment, index_TabBar as TabBar, type index_TabBarIndicatorSize as TabBarIndicatorSize, type index_TabBarProps as TabBarProps, index_TabBarView as TabBarView, type index_TabBarViewProps as TabBarViewProps, index_TabController as TabController, index_TabControllerConsumer as TabControllerConsumer, index_TabControllerContext as TabControllerContext, type index_TabControllerProps as TabControllerProps, index_TabControllerProvider as TabControllerProvider, type index_TabControllerRef as TabControllerRef, type index_TabControllerRenderNode as TabControllerRenderNode, type index_TapDownDetails as TapDownDetails, type index_TapUpDetails as TapUpDetails, index_Text as Text, type index_TextAlign as TextAlign, type index_TextBaseLine as TextBaseLine, type index_TextDecoration as TextDecoration, type index_TextDecorationStyle as TextDecorationStyle, type index_TextDirection as TextDirection, index_TextField as TextField, type index_TextFieldProps as TextFieldProps, type index_TextHeightBehavior as TextHeightBehavior, type index_TextInputType as TextInputType, type index_TextLeadingDistribution as TextLeadingDistribution, type index_TextOverflow as TextOverflow, type index_TextProps as TextProps, index_TextSpan as TextSpan, type index_TextSpanProps as TextSpanProps, type index_TextStyle as TextStyle, type index_TextWidthBasis as TextWidthBasis, index_Ticker as Ticker, index_TickerManager as TickerManager, index_TickerManagerConsumer as TickerManagerConsumer, index_TickerManagerProvider as TickerManagerProvider, type index_TickerManagerProviderProps as TickerManagerProviderProps, type index_TickerManagerRef as TickerManagerRef, type index_TileMode as TileMode, index_TransformRotate as TransformRotate, type index_TransformRotateProps as TransformRotateProps, index_TransformScale as TransformScale, type index_TransformScaleProps as TransformScaleProps, index_TransformTranslate as TransformTranslate, type index_TransformTranslateProps as TransformTranslateProps, type index_Tween as Tween, type index_TweenSequence as TweenSequence, type index_TweenSequenceConstantItem as TweenSequenceConstantItem, type index_TweenSequenceItem as TweenSequenceItem, type index_TweenType as TweenType, index_UnconstrainedBox as UnconstrainedBox, type index_UnconstrainedBoxProps as UnconstrainedBoxProps, type index_UserScrollNotification as UserScrollNotification, type index_Velocity as Velocity, type index_VerticalDirection as VerticalDirection, index_WebView as WebView, index_WebViewController as WebViewController, type index_WebViewProps as WebViewProps, type index_WebViewSettings as WebViewSettings, index_Wrap as Wrap, type index_WrapAlignment as WrapAlignment, type index_WrapCrossAlignment as WrapCrossAlignment, type index_WrapProps as WrapProps, index_useAnimationController as useAnimationController, index_useLayerLink as useLayerLink, index_useNavigator as useNavigator, index_useTabController as useTabController, index_useTickerManager as useTickerManager };
-}
-
 declare global {
   const console: {
       log: (...args: any[]) => void;
@@ -3474,5 +3187,5 @@ declare global {
   }
 }
 
-export { type AixsDirection, type Alignment, type AppLifeCycleState, type Axis, type BlendMode, type BlurStyle, type BorderRadius, type BorderSide, type BoxConstraints, type BoxDecoration, type BoxFit, type BoxShadow, type Brightness, CancelToken, ChildrenRule, type Clip, Clipboard, type Color, type ComponentCallback, type ComponentEffect, type ComponentMemo, type ComponentProps, type Consumer, type ConsumerProps, type Context, type CrossAxisAlignment, type CupertinoDialogRoute, type CupertinoModalPopupRoute, type CupertinoPageRoute, type Curve, Device, Dialog, type DialogRoute, type DismissDirection, type Dispatch, type DragDownDetails, type DragEndDetails, type DragUpdateDetails, type EdgeInsets, type EdgeInsetsDirectional, type EffectCallback, type EffectDestructor, type EventPosition, FilePicker, type FilterQuality, type FontStyle, type FontWeight, type FunctionComponent, type ImageFilter, type ImageFilterBlur, type ImageFilterCompose, type ImageFilterDilate, type ImageFilterErode, type ImageFilterMaxtrix, type ImageRepeat, ImageSaver, type IndexRouteObject, type InternalWidgetRender, type IntervalCurve, type KeyProps, type LinearGradient, type LocaleState, type MainAxisAlignment, type MainAxisSize, type MaterialPageRoute, type MediaQueryData, type ModalBottomSheetRoute, type MutableRefObject, Navigation, type NormalCurve, type NormalRouteObject, type Offset, type OtherwiseRouteObject, type OverScrollNotification, type OverlayVisibilityMode, type PageInfo, type PageParamsUpdateEvent, type PagePopEvent, type PagePopResultEvent, type PagePushEvent, type PageRoute, type PaintRect, type PaintSize, type PermissionStatus, type PermissionType, type Provider, type ProviderProps, type PushNamedRouteOptions, type PushRouteOptions, type RadialGradient, type Reducer, type ReducerAction, type ReducerState, type RefObject, type RefProps, type RelativeRect, type RenderNode, type RenderObject, type RenderObjectShowOnScreenOptions, Request, type RouteObject, type RouteParams, Router, RouterProvider, type ScaleEndDetails, type ScaleStartDetails, type ScaleUpdateDetails, ScriptingAppEvents, type ScriptingDeviceInfo, type ScrollEndNotification, type ScrollMetrics, type ScrollNotification, type ScrollOrientation, type ScrollPhysics, type ScrollStartNotification, type ScrollUpdateNotification, type ScrollViewKeyboardDismissBehavior, type SetStateAction, Share, type ShareResultStatus, SocketIO, type StackFit, type StateInitializer, Storage, type StrokeCap, type StrutStyle, type TabAlignment, type TabBarIndicatorSize, type TapDownDetails, type TapUpDetails, type TextAlign, type TextBaseLine, type TextDecoration, type TextDecorationStyle, type TextDirection, type TextHeightBehavior, type TextInputType, type TextLeadingDistribution, type TextOverflow, type TextStyle, type TextWidthBasis, type ThemeState, type TileMode, type TypedParams, type UserScrollNotification, type Velocity, type VerticalDirection, type VirtualNode, index as Widgets, type WrapAlignment, type WrapCrossAlignment, type WrappedRouter, addAppEvent, createContext, createElement, index$1 as fs, getPermissionStatus, isApiEnabled, requestPermission, runApp, useByTheme, useCallback, useCancelToken, useContext, useEffect, useLocale, useMediaQuery, useMemo, useReducer, useRef, useRouteParams, useRouter, useSelector, useState, useThemeState };
+export { AbsorbPointer, type AbsorbPointerProps, type AixsDirection, type Alignment, AnimatedAlign, type AnimatedAlignProps, AnimatedContainer, type AnimatedContainerProps, AnimatedOpacity, type AnimatedOpacityProps, AnimatedPadding, type AnimatedPaddingProps, AnimatedPositioned, type AnimatedPositionedProps, AnimatedRotation, type AnimatedRotationProps, AnimatedScale, type AnimatedScaleProps, AnimatedSize, type AnimatedSizeProps, AnimatedSlide, type AnimatedSlideProps, type AnimationControllerIntialOptions, type AnimationInitalOptions, type AnimationStatus, type AnimationStatusListener, type AnimationValue, type AppLifeCycleState, AspectRatio, type AspectRatioProps, AutoSizeText, type AutoSizeTextProps, type Axis, BackdropFilter, type BackdropFilterProps, Baseline, type BaselineProps, type BlendMode, type BlurStyle, type BorderRadius, type BorderSide, BottomNavigationBarItem, type BottomNavigationBarItemProps, type BoxConstraints, type BoxDecoration, type BoxFit, type BoxShadow, type Brightness, CSSFilter, type CSSFilterMatrix, CSSFilterPresets, type CSSFilterPresetsEffect, type CSSFilterPresetsProps, type CSSFilterProps, CancelToken, Center, type CenterProps, ChildrenRule, CircularProgressIndicator, type CircularProgressIndicatorProps, type Clip, ClipOval, type ClipOvalProps, ClipRRect, type ClipRRectProps, ClipRect, type ClipRectProps, Clipboard, type Color, Column, type ColumnProps, type ComponentCallback, type ComponentEffect, type ComponentMemo, type ComponentProps, CompositedTransformFollower, type CompositedTransformFollowerProps, CompositedTransformTarget, type CompositedTransformTargetProps, ConstrainedBox, type ConstrainedBoxProps, type Consumer, type ConsumerProps, Container, type ContainerProps, type Context, type CrossAxisAlignment, CupertinoActionSheet, CupertinoActionSheetAction, type CupertinoActionSheetActionProps, type CupertinoActionSheetProps, CupertinoActivityIndicator, type CupertinoActivityIndicatorProps, CupertinoAlertDialog, type CupertinoAlertDialogProps, CupertinoButton, type CupertinoButtonProps, CupertinoContextMenu, CupertinoContextMenuAction, type CupertinoContextMenuActionProps, type CupertinoContextMenuProps, CupertinoDatePicker, type CupertinoDatePickerMode, type CupertinoDatePickerProps, CupertinoDialogAction, type CupertinoDialogActionProps, type CupertinoDialogRoute, CupertinoFormRow, type CupertinoFormRowProps, CupertinoFormSection, type CupertinoFormSectionProps, type CupertinoIcons, CupertinoListSection, type CupertinoListSectionProps, CupertinoListTile, CupertinoListTileChevron, type CupertinoListTileProps, type CupertinoModalPopupRoute, CupertinoNavigationBar, CupertinoNavigationBarBackButton, type CupertinoNavigationBarBackButtonProps, type CupertinoNavigationBarProps, type CupertinoPageRoute, CupertinoPageScaffold, type CupertinoPageScaffoldProps, CupertinoPicker, CupertinoPickerDefaultSelectionOverlay, type CupertinoPickerDefaultSelectionOverlayProps, type CupertinoPickerProps, CupertinoScrollerBar, type CupertinoScrollerBarProps, CupertinoSearchTextField, type CupertinoSearchTextFieldProps, CupertinoSegmentedControl, type CupertinoSegmentedControlProps, CupertinoSlider, type CupertinoSliderProps, CupertinoSlidingSegmentedControl, type CupertinoSlidingSegmentedControlProps, CupertinoSliverNavigationBar, type CupertinoSliverNavigationBarProps, CupertinoSliverRefreshControl, type CupertinoSliverRefreshControlProps, CupertinoSwitch, type CupertinoSwitchProps, CupertinoTabBar, type CupertinoTabBarProps, CupertinoTextField, type CupertinoTextFieldProps, CupertinoTimerPicker, type CupertinoTimerPickerMode, type CupertinoTimerPickerProps, type Curve, CustomScrollView, type CustomScrollViewProps, type DatePickerDateOrder, DefaultTabController, type DefaultTabControllerProps, DefaultTextStyle, type DefaultTextStyleProps, Device, Dialog, type DialogRoute, type DismissDirection, Dismissable, type DismissableProps, type Dispatch, DottedBorder, type DottedBorderProps, DottedLine, type DottedLineProps, type DragDownDetails, type DragEndDetails, type DragUpdateDetails, type EdgeInsets, type EdgeInsetsDirectional, type EffectCallback, type EffectDestructor, type EventPosition, Expanded, type ExpandedProps, FilePicker, type FilterQuality, FittedBox, type FittedBoxProps, type FontStyle, type FontWeight, FormData, type FunctionComponent, GestureDetector, type GestureDetectorProps, Gif, type GifProps, type GridDelegateWithFixedCrossAxisCount, type GridDelegateWithMaxCrossAxisExtent, GridView, type GridViewCommonProps, type GridViewFixedCrossAxisCountProps, type GridViewMaxCrossAxisExtentProps, type GridViewProps, Hero, type HeroProps, Icon, type IconProps, IgnorePointer, type IgnorePointerProps, Image, type ImageByteFormat, type ImageFilter, type ImageFilterBlur, type ImageFilterCompose, type ImageFilterDilate, type ImageFilterErode, type ImageFilterMaxtrix, type ImageProps, type ImageRepeat, ImageSaver, type IndexRouteObject, IndexedStack, type IndexedStackProps, InkWell, type InkWellProps, type InternalWidgetRender, type IntervalCurve, IntrinsicHeight, type IntrinsicHeightProps, IntrinsicWidth, type IntrinsicWidthProps, type KeyProps, LayerLink, type LinearGradient, LinearProgressIndicator, type LinearProgressIndicatorProps, ListView, type ListViewProps, type LocaleState, type MainAxisAlignment, type MainAxisSize, Material, type MaterialPageRoute, type MaterialProps, type MediaQueryData, type ModalBottomSheetRoute, MultipartFile, type MutableRefObject, Navigation, Navigator, type NavigatorProps, type NavigatorRef, NestedScrollView, type NestedScrollViewProps, NetworkImage, type NetworkImageProps, type NormalCurve, type NormalRouteObject, type Offset, Opacity, type OpacityProps, type OtherwiseRouteObject, type OverScrollNotification, OverflowBox, type OverflowBoxProps, Overlay, type OverlayProps, type OverlayVisibilityMode, Padding, type PaddingProps, type PageInfo, type PageParamsUpdateEvent, type PagePopEvent, type PagePopResultEvent, type PagePushEvent, type PageRoute, PageView, type PageViewProps, type PaintRect, type PaintSize, type PermissionStatus, type PermissionType, PopScope, type PopScopeProps, Positioned, type PositionedProps, type Provider, type ProviderProps, type PushNamedRouteOptions, type PushRouteOptions, QrImage, type QrImageProps, type RadialGradient, type Reducer, type ReducerAction, type ReducerState, type RefObject, type RefProps, RefreshIndicator, type RefreshIndicatorProps, type RelativeRect, type RenderNode, type RenderObject, type RenderObjectShowOnScreenOptions, ReorderableListView, type ReorderableListViewProps, RepaintBoundary, type RepaintBoundaryProps, type RepaintBoundaryRef, Request, type RequestOptions, RichText, type RichTextProps, RotatedBox, type RotatedBoxProps, type RouteObject, type RouteParams, Router, RouterProvider, Row, type RowProps, SafeArea, type SafeAreaProps, type ScaleEndDetails, type ScaleStartDetails, type ScaleUpdateDetails, ScriptingAppEvents, type ScriptingDeviceInfo, type ScrollEndNotification, type ScrollMetrics, type ScrollNotification, ScrollNotificationListener, type ScrollNotificationListenerProps, type ScrollOrientation, type ScrollPhysics, type ScrollStartNotification, type ScrollUpdateNotification, type ScrollViewKeyboardDismissBehavior, Scrollbar, type ScrollbarProps, type SetStateAction, Share, type ShareResultStatus, SingleChildScrollView, type SingleChildScrollViewProps, SizedBox, type SizedBoxProps, SliverFillRemaining, type SliverFillRemainingProps, SliverFixedHeightPersistentHeader, type SliverFixedHeightPersistentHeaderProps, SliverToBoxAdapter, type SliverToBoxAdapterProps, SocketIO, Spacer, type SpacerProps, Stack, type StackFit, type StackProps, type StateInitializer, StickyHeader, type StickyHeaderProps, Storage, StringSvg, type StringSvgProps, type StrokeCap, type StrutStyle, Svg, type SvgProps, Swiper, SwiperPagination, type SwiperPaginationProps, type SwiperProps, Switch, type SwitchProps, type TabAlignment, TabBar, type TabBarIndicatorSize, type TabBarProps, TabBarView, type TabBarViewProps, TabController, TabControllerConsumer, TabControllerContext, type TabControllerProps, TabControllerProvider, type TabControllerRef, type TabControllerRenderNode, type TapDownDetails, type TapUpDetails, Text, type TextAlign, type TextBaseLine, type TextDecoration, type TextDecorationStyle, type TextDirection, TextField, type TextFieldProps, type TextHeightBehavior, type TextInputType, type TextLeadingDistribution, type TextOverflow, type TextProps, TextSpan, type TextSpanProps, type TextStyle, type TextWidthBasis, type ThemeState, Ticker, TickerManager, TickerManagerConsumer, TickerManagerProvider, type TickerManagerProviderProps, type TickerManagerRef, type TileMode, TransformRotate, type TransformRotateProps, TransformScale, type TransformScaleProps, TransformTranslate, type TransformTranslateProps, type Tween, type TweenSequence, type TweenSequenceConstantItem, type TweenSequenceItem, type TweenType, type TypedParams, UnconstrainedBox, type UnconstrainedBoxProps, type UserScrollNotification, type Velocity, type VerticalDirection, type VirtualNode, WebView, WebViewController, type WebViewProps, type WebViewSettings, Wrap, type WrapAlignment, type WrapCrossAlignment, type WrapProps, type WrappedRouter, addAppEvent, createContext, createElement, fetch, index as fs, getPermissionStatus, isApiEnabled, requestPermission, runApp, useAnimationController, useByTheme, useCallback, useCancelToken, useContext, useEffect, useLayerLink, useLocale, useMediaQuery, useMemo, useNavigator, useReducer, useRef, useRouteParams, useRouter, useSelector, useState, useTabController, useThemeState, useTickerManager };
 export as namespace Scripting;

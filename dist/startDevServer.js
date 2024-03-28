@@ -22,6 +22,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -29,9 +38,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.startDevServer = void 0;
 const node_http_1 = __importDefault(require("node:http"));
 const node_path_1 = __importDefault(require("node:path"));
+const promises_1 = require("node:fs/promises");
 const chalk_1 = __importDefault(require("chalk"));
 const express_1 = __importDefault(require("express"));
 const minimist_1 = __importDefault(require("minimist"));
+const qrcode_terminal_1 = __importDefault(require("qrcode-terminal"));
 const socket_io_1 = require("socket.io");
 const utils = __importStar(require("./utils"));
 const webpack_1 = __importDefault(require("webpack"));
@@ -51,7 +62,7 @@ function startDevServer() {
     compiler.watch({}, (err, stats) => {
         utils.clearConsole();
         if (err) {
-            console.log(chalk_1.default.red('[DevServer] webpack compile error: \n') + err);
+            console.log(chalk_1.default.red(' ✖️ webpack compile error: \n') + err);
         }
         else {
             console.log(stats === null || stats === void 0 ? void 0 : stats.toString({
@@ -64,19 +75,24 @@ function startDevServer() {
         }
     });
     function onCompileDone() {
-        if (isStarted) {
-            printDevServerAddress();
-            console.log(chalk_1.default.gray(`[DevServer] Sent update event to ${connectedSockets.length} client(s)`));
-            connectedSockets.forEach(socket => {
-                socket.emit('update');
-            });
-        }
-        else {
-            start();
-        }
+        return __awaiter(this, void 0, void 0, function* () {
+            if (isStarted) {
+                printDevServerAddress();
+                console.log(chalk_1.default.gray(` ~ Sent update event to ${connectedSockets.length} client(s)`));
+                const appJson = yield (0, promises_1.readFile)(node_path_1.default.resolve(process.cwd(), 'build/app.json'), 'utf-8');
+                for (const socket of connectedSockets) {
+                    socket.emit('update', appJson);
+                }
+            }
+            else {
+                start();
+            }
+        });
     }
     function printDevServerAddress() {
         console.log(`Server running at ${chalk_1.default.bold(chalk_1.default.green(`http://${ipAddress}:${port}`))}`);
+        console.log(`Use the Scripting app to scan the QR code below:`);
+        qrcode_terminal_1.default.generate(`http://${ipAddress}:${port}`, { small: true });
     }
     function start() {
         if (isStarted) {
@@ -85,23 +101,22 @@ function startDevServer() {
         app.all('*', function (req, res, next) {
             res.header('Access-Control-Allow-Origin', '*');
             res.header('Access-Control-Allow-Headers', '*');
-            // res.header('Content-Type', 'application/jsoncharset=utf-8')
             res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS, PUT, DELETE');
             next();
         });
-        app.use('/', express_1.default.static(node_path_1.default.resolve(__dirname, '../build')));
+        app.use('/', express_1.default.static(node_path_1.default.resolve(process.cwd(), 'build')));
         //有新的客户端连接时触发
         io.on('connection', function (socket) {
-            console.log(chalk_1.default.green('[DevServer] A client connected.'));
+            console.log(chalk_1.default.green(` + A client(${socket.id}) connected.`));
             connectedSockets.push(socket);
             socket.on('error', function (err) {
-                console.log(chalk_1.default.red('[DevServer] Error: ', err));
+                console.log(chalk_1.default.red(' ✖️ Server Error: ', err));
             });
             socket.on('disconnect', function () {
                 var index = connectedSockets.indexOf(socket);
                 if (index > -1) {
                     connectedSockets.splice(index, 1);
-                    console.log(chalk_1.default.gray('[DevServer] A client disconnected.'));
+                    console.log(chalk_1.default.gray(` - A client(${socket.id}) disconnected.`));
                 }
             });
         });

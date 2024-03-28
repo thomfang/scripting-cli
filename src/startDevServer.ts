@@ -1,8 +1,10 @@
 import http from 'node:http'
 import path from 'node:path'
+import { readFile, } from 'node:fs/promises'
 import chalk from 'chalk'
 import express from 'express'
 import minimist from 'minimist'
+import qrcode from 'qrcode-terminal'
 
 import { Server, Socket } from 'socket.io'
 
@@ -40,7 +42,7 @@ export function startDevServer() {
       utils.clearConsole()
       if (err) {
         console.log(
-          chalk.red('[DevServer] webpack compile error: \n') + err
+          chalk.red(' ✖️ webpack compile error: \n') + err
         )
       } else {
         console.log(stats?.toString({
@@ -55,15 +57,25 @@ export function startDevServer() {
     }
   )
 
-  function onCompileDone() {
+  async function onCompileDone() {
     if (isStarted) {
       printDevServerAddress()
+
       console.log(
-        chalk.gray(`[DevServer] Sent update event to ${connectedSockets.length} client(s)`)
+        chalk.gray(` ~ Sent update event to ${connectedSockets.length} client(s)`)
       )
-      connectedSockets.forEach(socket => {
-        socket.emit('update')
-      })
+
+      const appJson = await readFile(
+        path.resolve(
+          process.cwd(),
+          'build/app.json'
+        ),
+        'utf-8'
+      )
+
+      for (const socket of connectedSockets) {
+        socket.emit('update', appJson)
+      }
     } else {
       start()
     }
@@ -75,6 +87,8 @@ export function startDevServer() {
         `http://${ipAddress}:${port}`
       ),
     )}`)
+    console.log(`Use the Scripting app to scan the QR code below:`)
+    qrcode.generate(`http://${ipAddress}:${port}`, { small: true })
   }
 
   function start() {
@@ -85,7 +99,6 @@ export function startDevServer() {
     app.all('*', function (req, res, next) {
       res.header('Access-Control-Allow-Origin', '*')
       res.header('Access-Control-Allow-Headers', '*')
-      // res.header('Content-Type', 'application/jsoncharset=utf-8')
       res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS, PUT, DELETE')
       next()
     })
@@ -93,7 +106,7 @@ export function startDevServer() {
     app.use(
       '/',
       express.static(
-        path.resolve(__dirname, '../build')
+        path.resolve(process.cwd(), 'build')
       )
     )
 
@@ -101,7 +114,7 @@ export function startDevServer() {
     io.on('connection', function (socket) {
       console.log(
         chalk.green(
-          '[DevServer] A client connected.'
+          ` + A client(${socket.id}) connected.`
         )
       )
       connectedSockets.push(socket)
@@ -109,7 +122,7 @@ export function startDevServer() {
       socket.on('error', function (err) {
         console.log(
           chalk.red(
-            '[DevServer] Error: ', err
+            ' ✖️ Server Error: ', err
           )
         )
       })
@@ -120,7 +133,7 @@ export function startDevServer() {
           connectedSockets.splice(index, 1)
           console.log(
             chalk.gray(
-              '[DevServer] A client disconnected.'
+              ` - A client(${socket.id}) disconnected.`
             )
           )
         }

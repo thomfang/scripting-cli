@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import Webpack from "webpack"
 import webpackConfig from './config/webpack.config'
+import { zip } from 'cross-zip'
+import path from 'node:path'
 
 export function buildApp() {
   const compiler = Webpack(webpackConfig)
@@ -25,7 +27,33 @@ export function buildApp() {
         chunks: false,
         colors: false,
       }))
+
+      createAppFile()
     }
   })
 
+}
+
+function createAppFile() {
+  const appFile = `${Object.keys(webpackConfig.entry as any)[0]}.zip`
+
+  console.log(
+    ` ~ Creating ${appFile}....`
+  )
+
+  zip(
+    path.resolve(process.cwd(), './build'),
+    path.resolve(process.cwd(), `./build/${appFile}`),
+    (error) => {
+      if (error != null) {
+        console.log(
+          chalk.red('Error zipping app files: \n') + error
+        )
+      } else {
+        console.log(
+          chalk.green(` ✔️ ${appFile} created.`)
+        )
+      }
+    }
+  )
 }
