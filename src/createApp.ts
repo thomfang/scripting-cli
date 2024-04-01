@@ -26,68 +26,68 @@ async function createEntryFile(appName: string) {
 
   await writeFile(
     filePath,
-    `
+    `import { runApp, createElement, RouterProvider, Router, Column, CupertinoNavigationBar, CupertinoPageScaffold, Svg, Text, Container, useCupertinoColors } from 'scripting'
+import Logo from './svgs/logo.svg'
 
-    import { runApp, createElement, RouterProvider, Router, Column, CupertinoNavigationBar, CupertinoPageScaffold, Svg, Text, Container, Color } from 'scripting'
-    import Logo from './svgs/logo.svg'
-    
-    function ScriptingLogo() {
-      return (
-        <Container
-          clipBehavior={'hardEdge'}
-          width={80}
-          height={80}
-          margin={{
-            vertical: 100,
-          }}
-          borderRadius={16}
-        >
-          <Svg src={Logo} />
-        </Container>
-      )
-    }
-    
-    function HomePage() {
-      const backgroundColor: Color = '#ffffff'
-      return (
-        <CupertinoPageScaffold
-          navigationBar={
-            <CupertinoNavigationBar
-              middle={
-                <Text>${appName}</Text>
-              }
-              backgroundColor={backgroundColor}
-            />
+function ScriptingLogo() {
+  return (
+    <Container
+      clipBehavior={'hardEdge'}
+      width={80}
+      height={80}
+      margin={{
+        vertical: 100,
+      }}
+      borderRadius={16}
+    >
+      <Svg src={Logo} />
+    </Container>
+  )
+}
+
+function HomePage() {
+  const cupertinoColors = useCupertinoColors()
+  const backgroundColor = cupertinoColors.systemBackground
+
+  return (
+    <CupertinoPageScaffold
+      navigationBar={
+        <CupertinoNavigationBar
+          middle={
+            <Text>${appName}</Text>
           }
+          backgroundColor={backgroundColor}
+        />
+      }
+    >
+      <Container
+        width={'infinity'}
+        height={'infinity'}
+        color={backgroundColor}
+      >
+        <Column
+          crossAxisAlignment={'center'}
         >
-          <Container
-            width={'infinity'}
-            height={'infinity'}
-            color={backgroundColor}
-          >
-            <Column
-              crossAxisAlignment={'center'}
-            >
-              <ScriptingLogo />
-              <Text>Welcome to Scripting!</Text>
-            </Column>
-          </Container>
-        </CupertinoPageScaffold>
-      )
-    }
-    
-    const router = new Router([
-      {
-        path: '/',
-        element: <HomePage />,
-      },
-    ])
-    
-    runApp(
-      <RouterProvider router={router} />
-    )
-    
-`,
+          <ScriptingLogo />
+          <Text
+            color={cupertinoColors.label}
+          >Welcome to Scripting!</Text>
+        </Column>
+      </Container>
+    </CupertinoPageScaffold>
+  )
+}
+
+const router = new Router([
+  {
+    path: '/',
+    element: <HomePage />,
+  },
+])
+
+runApp(
+  <RouterProvider router={router} />
+)`,
     'utf-8'
   )
 
@@ -222,23 +222,26 @@ async function copyAssets(appName: string) {
 }
 
 async function createVSCodeSettings(appName: string) {
-  const destDir = path.join(process.cwd(), '.vscode')
+  const destDir = path.join(getAppDir(appName), '.vscode')
 
   if (!fs.existsSync(destDir)) {
-    await mkdir(destDir)
+    await mkdir(destDir, { recursive: true })
   }
 
   await copyFile(
     path.join(__dirname, '../.vscode/settings.json'),
-    path.join(getAppDir(appName), '.vscode/settings.json')
+    path.join(destDir, 'settings.json')
   )
 }
 
 function installDeps(appName: string) {
+  console.log(
+    ` > cd ${appName} && npm i -D ts-loader typescript file-loader`
+  )
   execSync(`cd ${appName} && npm i -D ts-loader typescript file-loader`)
 
   console.log(
-    chalk.green(` ✔️ Scripting application ${chalk.bold(appName)} created!`)
+    chalk.green(` ✔️ Scripting application ${chalk.bold(appName)} is ready!`)
   )
 }
 
@@ -249,6 +252,10 @@ export async function createApp(appName: string) {
     )
     return
   }
+
+  console.log(
+    `Start creating ${appName} ...`
+  )
 
   try {
     await createAppDir(appName)
@@ -262,8 +269,8 @@ export async function createApp(appName: string) {
     installDeps(appName)
 
     console.log(
-      ` ✔️ All done! Run ${chalk.bold(
-        chalk.green('npm run dev')
+      `All done! Run ${chalk.bold(
+        chalk.green(`cd ${appName} && npm run dev`)
       )} to start the dev server.`
     )
 

@@ -56,8 +56,9 @@ function startDevServer() {
     const io = new socket_io_1.Server(server);
     let isStarted = false;
     let connectedSockets = [];
-    webpack_config_1.default.mode = 'development';
-    const compiler = (0, webpack_1.default)(webpack_config_1.default);
+    const webpackConfig = (0, webpack_config_1.default)();
+    webpackConfig.mode = 'development';
+    const compiler = (0, webpack_1.default)(webpackConfig);
     console.log('Start running webpack compiler in watch mode...');
     compiler.watch({}, (err, stats) => {
         utils.clearConsole();

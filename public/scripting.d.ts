@@ -100,7 +100,15 @@ type Color = string | {
   g: number;
   b: number;
   /**
-   *透明度, 0 ~ 1
+   *alpha, 0 ~ 255
+   */
+  a: number;
+} | {
+  r: number;
+  g: number;
+  b: number;
+  /**
+   * opacity, 0 ~ 1
    */
   o: number;
 } | {
@@ -711,14 +719,18 @@ declare function RouterProvider({ router }: {
   router: Router;
 }): JSX.Element;
 
+type Orientation = 'portrait' | 'landscape';
+type ThemeMode = 'light' | 'dark';
+type DeviceOrientation = 'portraitUp' | 'landscapeLeft' | 'portraitDown' | 'landscapeRight';
 type MediaQueryData = {
   size: {
       width: number;
       height: number;
   };
+  orientation: Orientation;
   devicePixelRatio: number;
   textScaleFactor: number;
-  platformBrightness: 'dark' | 'light';
+  platformBrightness: ThemeMode;
   padding: {
       left: number;
       right: number;
@@ -762,7 +774,7 @@ type ScriptingDeviceInfo = {
 };
 type ThemeState = {
   isDarkMode: boolean;
-  themeMode: 'light' | 'dark';
+  themeMode: ThemeMode;
 };
 type LocaleState = {
   locale: string;
@@ -771,7 +783,6 @@ type ShareResultStatus = 'success' | 'dismissed' | 'unavailable';
 type AppLifeCycleState = 'resumed' | 'inactive' | 'paused' | 'detached' | 'hidden';
 
 declare const isApiEnabled: boolean;
-declare function addAppEvent<T extends Function>(type: string, handler: T): void;
 
 declare function useByTheme<T>({ dark, light }: {
   dark: T;
@@ -780,22 +791,21 @@ declare function useByTheme<T>({ dark, light }: {
 
 declare function useLocale(): string;
 
-declare function useThemeState(): {
-  isDarkMode: boolean;
-  themeMode: "dark" | "light";
-};
+declare function useThemeState(): ThemeState;
 
 declare function useMediaQuery(): MediaQueryData;
 
-/**
-* Scripting app events
-*/
-declare const ScriptingAppEvents: {
-  mediaQueryDataChanged: string;
-  themeModeChanged: string;
-  localeChanged: string;
-  appLifeCycleStateChanged: string;
-  appDispose: string;
+declare class EventEmitter<R> {
+  private event;
+  constructor(event: string);
+  on(listener: (data: R) => void): void;
+  off(listener: (data: R) => void): void;
+}
+declare const AppEvent: {
+  AppLifeCycleStateChanged: EventEmitter<AppLifeCycleState>;
+  MediaQueryDataChanged: EventEmitter<MediaQueryData>;
+  LocaleChanged: EventEmitter<LocaleState>;
+  AppDispose: EventEmitter<void>;
 };
 
 type FileMode = 'read' | 'write' | 'writeOnly' | 'append' | 'writeOnlyAppend';
@@ -957,445 +967,47 @@ declare namespace index {
 export { type index_Encoding as Encoding, type index_FileMode as FileMode, type index_FileStat as FileStat, type index_FileSystemCommonEventDetails as FileSystemCommonEventDetails, type index_FileSystemCreateEventDetails as FileSystemCreateEventDetails, type index_FileSystemDeleteEventDetails as FileSystemDeleteEventDetails, index_FileSystemEvent as FileSystemEvent, type index_FileSystemEventDetails as FileSystemEventDetails, type index_FileSystemModifyEventDetails as FileSystemModifyEventDetails, type index_FileSystemMoveEventDetails as FileSystemMoveEventDetails, index_copyFile as copyFile, index_createDirectory as createDirectory, index_createLink as createLink, index_documentsDirectory as documentsDirectory, index_exists as exists, index_isDirectory as isDirectory, index_isFile as isFile, index_readAsBytes as readAsBytes, index_readAsString as readAsString, index_readDirectory as readDirectory, remove$1 as remove, index_rename as rename, index_temporaryDirectory as temporaryDirectory, index_watch as watch, index_writeAsBytes as writeAsBytes, index_writeAsString as writeAsString };
 }
 
+declare function getBatteryLevel(): Promise<number>;
+
+/**
+* Indicates the current battery state.
+*/
+declare enum BatteryState {
+  /**
+   * The battery is fully charged.
+   */
+  full = 0,
+  /**
+   * The battery is currently charging.
+   */
+  charging = 1,
+  /**
+   * Device is connected to external power source, but not charging the battery.
+   *
+   * Usually happens when device has charge limit enabled and this limit is reached.
+   * Also, battery might be in this state if connected power source isn't powerful enough to charge the battery.
+   *
+   * Available on Android, MacOS and Linux platforms only.
+   */
+  connectedNotCharging = 2,
+  /**
+   * The battery is currently losing energy.
+   */
+  discharging = 3,
+  /**
+   * The state of the battery is unknown.
+   */
+  unknown = 4
+}
+declare function getBatteryState(): Promise<BatteryState>;
+
 declare function hapticFeedback(type: 'heavyImpact' | 'lightImpact' | 'mediumImpact' | 'selectionClick'): void;
 
-declare const Device: {
-  readonly isIOS: boolean;
-  readonly isAndroid: boolean;
-  readonly brand: string;
-  readonly model: string;
-  readonly locale: string;
-  readonly systemLocale: string;
-  readonly systemLocales: string[];
-  readonly systemLanguageTag: string;
-  readonly sysmtemLanguageCode: string;
-  readonly systemCountryCode: string | undefined;
-  readonly systemScriptCode: string | undefined;
-  hapticFeedback: typeof hapticFeedback;
-};
+declare function onBatteryStateChanged(listener: (state: BatteryState) => void): () => void;
 
-/**
-* Share base64 image
-* @param options
-* @param options.image base64 format, e.g. data:image/png;base64,xxxxx...
-* @param options.text Share text content
-* @param options.subject Share subject
-*/
-declare function shareBase64Image(options: {
-  image: string;
-  text?: string;
-  subject?: string;
-}): Promise<{
-  status: ShareResultStatus;
-}>;
+declare function setLocale(locale: string): void;
 
-/**
-* Share files
-* @param options
-* @param options.files Files path
-* @param options.text Share text content
-* @param options.subject Share subject
-*/
-declare function shareFiles(options: {
-  files: string[];
-  text: string;
-  subject?: string;
-}): Promise<{
-  status: ShareResultStatus;
-}>;
-
-/**
-* Share text
-* @param options
-* @param options.text Share text content
-* @param options.subject Share subject
-*/
-declare function shareText(options: {
-  text: string;
-  subject?: string;
-}): Promise<{
-  status: ShareResultStatus;
-}>;
-
-declare const Share: {
-  shareText: typeof shareText;
-  shareBase64Image: typeof shareBase64Image;
-  shareFiles: typeof shareFiles;
-};
-
-/**
-* Copy text to clipboard.
-* @param text Text content
-* @returns
-*/
-declare function copyText(text: string): Promise<boolean>;
-
-/**
-* Get text form clipboard.
-* @returns
-*/
-declare function getClipboardText(): Promise<string | null>;
-
-declare const Clipboard: {
-  copyText: typeof copyText;
-  getText: typeof getClipboardText;
-};
-
-/**
-* 关闭全屏loading
-*/
-declare function hideLoading(): void;
-
-/**
-* 打开Alert弹窗
-* @param options
-* @param options.content 弹窗内容
-* @param options.title 弹窗标题（可选）
-* @param options.buttonLabel 按钮文案（可选）
-*/
-declare function showAlert(options: {
-  content: string;
-  title?: string;
-  buttonLabel?: string;
-}): Promise<void>;
-
-type VstarBottomSheetOptions = {
-  /** 标题 */
-  title?: string;
-  /** 是否显示取消按钮，默认不显示 */
-  cancelButton?: boolean;
-  /** 是否可往下拖动关闭，默认可以 */
-  dragDownDissmisible?: boolean;
-  /** action选项 */
-  actions: {
-      /** 文本内容 */
-      label: string;
-      /** 是否选中 */
-      selected?: boolean;
-  }[];
-};
-/**
-* 展示bottom sheet 弹窗，类似iOS的选项功能
-* @param options
-* @param options.title 标题（可选）
-* @param options.cancelButton 是否展示取消按钮，默认展示（可选）
-* @param options.dragDownDissmisible 是否可以下拉关闭弹窗，默认可以（可选）
-* @param options.actions 选项列表
-* @param options.actions.label 选项文本
-* @param options.actions.selected 是否选中，设置为true改选项展示选中状态（可选）
-* @returns 点击某个选项后返回其下标，取消的话返回null
-*/
-declare function showBottomSheet({ title, cancelButton, dragDownDissmisible, actions, }: VstarBottomSheetOptions): Promise<number | null>;
-
-/**
-* 展示Confirm弹窗
-* @param options
-* @param options.content 提示内容
-* @param options.title 提示标题（可选）
-* @param options.cancelLabel 取消按钮文案（可选）
-* @param options.confirmLabel 确认按钮文案（可选）
-* @returns 返回true或false的promise
-*/
-declare function showConfirm(options: {
-  content: string;
-  title?: string;
-  cancelLabel?: string;
-  confirmLabel?: string;
-}): Promise<boolean>;
-
-declare function showLoading(options: {
-  message?: string;
-  color?: string;
-}): void;
-
-/**
-* 展示提醒弹窗
-* @param options
-* @param options.title 标题
-* @param options.obscureText 是否使用晦涩文本模式，用于密码之类（可选）
-* @param options.hintText 提示placeholder文案（可选）
-* @param options.cancelLabel 取消按钮文案（可选）
-* @param options.confirmLabel 确认按钮文案（可选）
-* @returns 用户输入确认后返回字符串，用户取消后返回null
-*/
-declare function showPrompt(options: {
-  title: string;
-  obscureText?: boolean;
-  hintText?: string;
-  cancelLabel?: string;
-  confirmLabel?: string;
-}): Promise<string | null>;
-
-/**
-* 展示Toast弹窗
-* @param options
-* @param options.content toast消息
-* @param options.duration 展示时间（可选），单位毫秒，默认2000毫秒（2秒）
-*/
-declare function showToast(options: {
-  content: string;
-  duration?: number;
-}): Promise<void>;
-
-declare const Dialog: {
-  showLoading: typeof showLoading;
-  hideLoading: typeof hideLoading;
-  showAlert: typeof showAlert;
-  showPrompt: typeof showPrompt;
-  showConfirm: typeof showConfirm;
-  showToast: typeof showToast;
-  showBottomSheet: typeof showBottomSheet;
-};
-
-type PickFileOptions = {
-  maxWidth?: number;
-  maxHeight?: number;
-  /**
-   * 1 - 100
-   */
-  imageQuality?: number;
-  requestFullMetadata?: boolean;
-};
-declare function pickImage(options?: PickFileOptions): Promise<string | null>;
-declare function pickMultipleImage(options?: PickFileOptions): Promise<string[]>;
-
-declare function pickMedia(options?: PickFileOptions): Promise<string | null>;
-declare function pickMultipleMedia(options?: PickFileOptions): Promise<string[]>;
-
-type TakePhotoOptions = PickFileOptions & {
-  preferredCameraDevice?: 'front' | 'rear';
-};
-declare function takePhoto(options?: TakePhotoOptions): Promise<string | null>;
-
-declare const FilePicker: {
-  pickImage: typeof pickImage;
-  pickMultipleImage: typeof pickMultipleImage;
-  pickMedia: typeof pickMedia;
-  pickMultipleMedia: typeof pickMultipleMedia;
-  takePhoto: typeof takePhoto;
-};
-
-declare const ImageSaver: {
-  saveBytesImage(options: {
-      image: ArrayBuffer;
-      quality?: number;
-      name?: string;
-  }): Promise<boolean>;
-  saveBase64Image(options: {
-      image: string;
-      quality?: number;
-      name?: string;
-  }): Promise<boolean>;
-  saveNetworkImage(options: {
-      url: string;
-      quality?: number;
-      name?: string;
-  }): Promise<boolean>;
-};
-
-declare function set<T>(key: string, value: T): Promise<boolean>;
-declare function get<T>(key: string): Promise<T | null>;
-declare function remove(key: string): Promise<boolean>;
-declare const Storage: {
-  set: typeof set;
-  get: typeof get;
-  remove: typeof remove;
-};
-
-type PermissionStatus = {
-  isDenied: boolean;
-  isGranted: boolean;
-  isLimited: boolean;
-  isPermanentlyDenied: boolean;
-  isProvisional: boolean;
-  isRestricted: boolean;
-};
-type PermissionType = 'accessMediaLocation' | 'accessNotificationPolicy' | 'activityRecognition' | 'appTrackingTransparency' | 'audio' | 'bluetoothAdvertise' | 'bluetoothConnect' | 'bluetoothScan' | 'calendarFullAccess' | 'calendarWriteOnly' | 'camera' | 'contacts' | 'criticalAlerts' | 'ignoreBatteryOptimizations' | 'manageExternalStorage' | 'mediaLibrary' | 'microphone' | 'nearbyWifiDevices' | 'notification' | 'photos' | 'photosAddOnly' | 'reminders' | 'requestInstallPackages' | 'scheduleExactAlarm' | 'sensors' | 'sensorsAlways' | 'sms' | 'speech' | 'storage' | 'systemAlertWindow';
-declare function getPermissionStatus(type: PermissionType): Promise<PermissionStatus>;
-declare function requestPermission(type: PermissionType): Promise<PermissionStatus>;
-
-declare function launchUrl(url: string): Promise<boolean>;
-
-declare function openScriptingApp<T>(options: {
-  url: string;
-  params?: {
-      [key: string]: any;
-  };
-}): Promise<T | null>;
-
-declare const Navigation: {
-  launchUrl: typeof launchUrl;
-  openScriptingApp: typeof openScriptingApp;
-};
-
-/**
-* 取消请求的token
-*
-* 同一个token可以用于多个请求
-*/
-declare class CancelToken {
-  readonly token: string;
-  private _isCancelled;
-  get isCancelled(): boolean;
-  /**
-   * 调用cancel方法后所有请求都会被取消
-   */
-  cancel(): void;
-}
-/**
-* 网络请求 CancelToken
-*/
-declare function useCancelToken(): {
-  get: () => CancelToken | undefined;
-  create: () => CancelToken;
-};
-
-declare function loadBytes(options: {
-  url: string;
-  noCache?: boolean;
-  timeout?: number;
-  debugLabel?: string;
-  headers?: {
-      [key: string]: any;
-  };
-  cancelToken?: CancelToken;
-}): Promise<number[] | null>;
-
-declare function loadFont(options: {
-  family: string;
-  urls: string[];
-  type?: 'otf' | 'ttf';
-}): Promise<boolean>;
-
-declare function loadJson<T>(options: {
-  url: string;
-  noCache?: boolean;
-  timeout?: number;
-  debugLabel?: string;
-  headers?: {
-      [key: string]: any;
-  };
-  queryParameters?: {
-      [key: string]: any;
-  };
-  cancelToken?: CancelToken;
-}): Promise<T | null>;
-
-declare function loadString<T>(options: {
-  url: string;
-  noCache?: boolean;
-  timeout?: number;
-  debugLabel?: string;
-  headers?: {
-      [key: string]: any;
-  };
-  queryParameters?: {
-      [key: string]: any;
-  };
-  cancelToken?: CancelToken;
-}): Promise<T | null>;
-
-type RequestOptions = {
-  url: string;
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD' | 'PATCH';
-  data?: any;
-  isFormData?: boolean;
-  contentType?: string;
-  responseType?: 'json' | 'plain' | 'bytes';
-  sendTimeout?: number;
-  receiveTimeout?: number;
-  connectTimeout?: number;
-  cancelToken?: CancelToken;
-  queryParameters?: {
-      [key: string]: any;
-  };
-  preserveHeaderCase?: boolean;
-  debugLabel?: string;
-};
-declare function fetch<T>(options: RequestOptions): Promise<T>;
-
-type MultipartFileOptions = {
-  filename?: string;
-  headers?: {
-      [key: string]: string[];
-  };
-};
-declare class MultipartFile {
-  type: string;
-  value: string | number[];
-  filename?: string | undefined;
-  headers?: {
-      [key: string]: string[];
-  } | undefined;
-  static fromBytes(bytes: number[], options?: MultipartFileOptions): MultipartFile;
-  static fromFile(filePath: string, options?: MultipartFileOptions): MultipartFile;
-  static fromString(string: string, options?: MultipartFileOptions): MultipartFile;
-  constructor(type: string, value: string | number[], filename?: string | undefined, headers?: {
-      [key: string]: string[];
-  } | undefined);
-  toJson(): {
-      type: string;
-      value: string | number[];
-      filename: string | undefined;
-      headers: {
-          [key: string]: string[];
-      } | undefined;
-  };
-}
-declare class FormData {
-  private _fields;
-  constructor();
-  static fromMap(map: {
-      [name: string]: string | string[] | MultipartFile | MultipartFile[];
-  }): FormData;
-  static getValue(formData: FormData): {
-      [name: string]: any;
-  };
-}
-/**
-* Example:
-*  ```ts
-* postFormData({
-*    url: 'https://example.com/api/upload-avatar',
-*    data: FormData.fromMap({
-*      file: MultipartFile.fromFile('/xx/file/path', {
-*        filename: 'avatar.png'
-*      }),
-*      destDir: '/avatar'
-*    })
-*  })
-* ```
-*/
-declare function postFormData<T>(options: RequestOptions & {
-  data: FormData;
-}): Promise<T>;
-
-declare const Request: {
-  loadString: typeof loadString;
-  loadJson: typeof loadJson;
-  loadBytes: typeof loadBytes;
-  loadFont: typeof loadFont;
-  postFormData: typeof postFormData;
-};
-
-type SocketIOOptions = {};
-
-declare class SocketIO {
-  private key;
-  url: string;
-  private _eventMap;
-  constructor(key: string, url: string);
-  connect(): void;
-  isConnected(): Promise<boolean | null>;
-  on<T>(event: string, callback: (data: T) => void): void;
-  once<T>(event: string, callback: (data: T) => void): void;
-  off<T>(event: string, callback: (data: T) => void): void;
-  emit(event: string, data?: any): void;
-  emitWithAck(event: string, data?: any): Promise<unknown>;
-  close(): void;
-  dispose(): void;
-  static open(url: string, options?: SocketIOOptions): Promise<SocketIO>;
-}
+declare function setPreferredOrientation(orientations: DeviceOrientation[]): void;
 
 type AnimatedAlignProps = {
   alignment: Alignment;
@@ -1656,6 +1268,13 @@ type CupertinoButtonProps = {
   children: VirtualNode;
 };
 declare const CupertinoButton: FunctionComponent<CupertinoButtonProps>;
+
+type CupertinoColors = Record<"white" | "black" | "lightBackgroundGray" | "extraLightBackgroundGray" | "darkBackgroundGray" | "inactiveGray" | "systemBlue" | "systemGreen" | "systemMint" | "systemIndigo" | "systemOrange" | "systemPink" | "systemBrown" | "systemPurple" | "systemRed" | "systemTeal" | "systemCyan" | "systemYellow" | "systemGrey" | "systemGrey2" | "systemGrey3" | "systemGrey4" | "systemGrey5" | "systemGrey6" | "label" | "secondaryLabel" | "tertiaryLabel" | "quaternaryLabel" | "systemFill" | "secondarySystemFill" | "tertiarySystemFill" | "quaternarySystemFill" | "placeholderText" | "systemBackground" | "secondarySystemBackground" | "tertiarySystemBackground" | "systemGroupedBackground" | "secondarySystemGroupedBackground" | "tertiarySystemGroupedBackground" | "separator" | "opaqueSeparator" | "link" | "activeBlue" | "activeGreen" | "activeOrange" | "destructiveRed", Color>;
+declare const CupertinoColorsWithBrightness: {
+  light: CupertinoColors;
+  dark: CupertinoColors;
+};
+declare function useCupertinoColors(): CupertinoColors;
 
 type CupertinoContextMenuProps = {
   enableHapticFeedback?: boolean;
@@ -3084,11 +2703,11 @@ declare class WebViewController {
   readonly key: string;
   constructor(key: string);
   /**
-   * 加载url
+   * Load by url
    */
   loadUrl(url: string): void;
   /**
-   * 加载数据，如 html 或 pdf 或base64图片
+   * Load string data
    */
   loadData(data: string, options?: {
       mimeType?: string;
@@ -3170,6 +2789,467 @@ type WrapProps = {
 };
 declare const Wrap: FunctionComponent<WrapProps>;
 
+type SystemUIOverlayStyle = {
+  systemNavigationBarColor?: Color;
+  systemNavigationBarDividerColor?: Color;
+  statusBarColor?: Color;
+  systemNavigationBarIconBrightness?: Brightness;
+  statusBarBrightness?: Brightness;
+  statusBarIconBrightness?: Brightness;
+  systemNavigationBarContrastEnforced?: boolean;
+  systemStatusBarContrastEnforced?: boolean;
+};
+declare function setSystemUIOverlayStyle(brightness: Brightness): void;
+declare function setCustomSystemUIOverlayStyle(style: SystemUIOverlayStyle): void;
+
+declare function setThemeMode(themeMode: ThemeMode): void;
+
+declare const Device: {
+  readonly isIOS: boolean;
+  readonly isAndroid: boolean;
+  readonly brand: string;
+  readonly model: string;
+  readonly locale: string;
+  readonly systemLocale: string;
+  readonly systemLocales: string[];
+  readonly systemLanguageTag: string;
+  readonly sysmtemLanguageCode: string;
+  readonly systemCountryCode: string | undefined;
+  readonly systemScriptCode: string | undefined;
+  hapticFeedback: typeof hapticFeedback;
+  getBatteryLevel: typeof getBatteryLevel;
+  getBatteryState: typeof getBatteryState;
+  onBatteryStateChanged: typeof onBatteryStateChanged;
+  setLocale: typeof setLocale;
+  setThemeMode: typeof setThemeMode;
+  setPreferredOrientation: typeof setPreferredOrientation;
+  setSystemUIOverlayStyle: typeof setSystemUIOverlayStyle;
+  setCustomSystemUIOverlayStyle: typeof setCustomSystemUIOverlayStyle;
+};
+
+/**
+* Share base64 image
+* @param options
+* @param options.image base64 format, e.g. data:image/png;base64,xxxxx...
+* @param options.text Share text content
+* @param options.subject Share subject
+*/
+declare function shareBase64Image(options: {
+  image: string;
+  text?: string;
+  subject?: string;
+}): Promise<{
+  status: ShareResultStatus;
+}>;
+
+/**
+* Share files
+* @param options
+* @param options.files Files path
+* @param options.text Share text content
+* @param options.subject Share subject
+*/
+declare function shareFiles(options: {
+  files: string[];
+  text: string;
+  subject?: string;
+}): Promise<{
+  status: ShareResultStatus;
+}>;
+
+/**
+* Share text
+* @param options
+* @param options.text Share text content
+* @param options.subject Share subject
+*/
+declare function shareText(options: {
+  text: string;
+  subject?: string;
+}): Promise<{
+  status: ShareResultStatus;
+}>;
+
+declare const Share: {
+  shareText: typeof shareText;
+  shareBase64Image: typeof shareBase64Image;
+  shareFiles: typeof shareFiles;
+};
+
+/**
+* Copy text to clipboard.
+* @param text Text content
+* @returns
+*/
+declare function copyText(text: string): Promise<boolean>;
+
+/**
+* Get text form clipboard.
+* @returns
+*/
+declare function getText(): Promise<string | null>;
+
+declare const Clipboard: {
+  copyText: typeof copyText;
+  getText: typeof getText;
+};
+
+/**
+* 关闭全屏loading
+*/
+declare function hideLoading(): void;
+
+/**
+* 打开Alert弹窗
+* @param options
+* @param options.content 弹窗内容
+* @param options.title 弹窗标题（可选）
+* @param options.buttonLabel 按钮文案（可选）
+*/
+declare function showAlert(options: {
+  content: string;
+  title?: string;
+  buttonLabel?: string;
+}): Promise<void>;
+
+type VstarBottomSheetOptions = {
+  /** 标题 */
+  title?: string;
+  /** 是否显示取消按钮，默认不显示 */
+  cancelButton?: boolean;
+  /** 是否可往下拖动关闭，默认可以 */
+  dragDownDissmisible?: boolean;
+  /** action选项 */
+  actions: {
+      /** 文本内容 */
+      label: string;
+      /** 是否选中 */
+      selected?: boolean;
+  }[];
+};
+/**
+* 展示bottom sheet 弹窗，类似iOS的选项功能
+* @param options
+* @param options.title 标题（可选）
+* @param options.cancelButton 是否展示取消按钮，默认展示（可选）
+* @param options.dragDownDissmisible 是否可以下拉关闭弹窗，默认可以（可选）
+* @param options.actions 选项列表
+* @param options.actions.label 选项文本
+* @param options.actions.selected 是否选中，设置为true改选项展示选中状态（可选）
+* @returns 点击某个选项后返回其下标，取消的话返回null
+*/
+declare function showBottomSheet({ title, cancelButton, dragDownDissmisible, actions, }: VstarBottomSheetOptions): Promise<number | null>;
+
+/**
+* 展示Confirm弹窗
+* @param options
+* @param options.content 提示内容
+* @param options.title 提示标题（可选）
+* @param options.cancelLabel 取消按钮文案（可选）
+* @param options.confirmLabel 确认按钮文案（可选）
+* @returns 返回true或false的promise
+*/
+declare function showConfirm(options: {
+  content: string;
+  title?: string;
+  cancelLabel?: string;
+  confirmLabel?: string;
+}): Promise<boolean>;
+
+declare function showLoading(options: {
+  message?: string;
+  color?: string;
+}): void;
+
+/**
+* 展示提醒弹窗
+* @param options
+* @param options.title 标题
+* @param options.obscureText 是否使用晦涩文本模式，用于密码之类（可选）
+* @param options.hintText 提示placeholder文案（可选）
+* @param options.cancelLabel 取消按钮文案（可选）
+* @param options.confirmLabel 确认按钮文案（可选）
+* @returns 用户输入确认后返回字符串，用户取消后返回null
+*/
+declare function showPrompt(options: {
+  title: string;
+  obscureText?: boolean;
+  hintText?: string;
+  cancelLabel?: string;
+  confirmLabel?: string;
+}): Promise<string | null>;
+
+/**
+* 展示Toast弹窗
+* @param options
+* @param options.content toast消息
+* @param options.duration 展示时间（可选），单位毫秒，默认2000毫秒（2秒）
+*/
+declare function showToast(options: {
+  content: string;
+  duration?: number;
+}): Promise<void>;
+
+declare const Dialog: {
+  showLoading: typeof showLoading;
+  hideLoading: typeof hideLoading;
+  showAlert: typeof showAlert;
+  showPrompt: typeof showPrompt;
+  showConfirm: typeof showConfirm;
+  showToast: typeof showToast;
+  showBottomSheet: typeof showBottomSheet;
+};
+
+type PickFileOptions = {
+  maxWidth?: number;
+  maxHeight?: number;
+  /**
+   * 1 - 100
+   */
+  imageQuality?: number;
+  requestFullMetadata?: boolean;
+};
+declare function pickImage(options?: PickFileOptions): Promise<string | null>;
+declare function pickMultipleImage(options?: PickFileOptions): Promise<string[]>;
+
+declare function pickMedia(options?: PickFileOptions): Promise<string | null>;
+declare function pickMultipleMedia(options?: PickFileOptions): Promise<string[]>;
+
+type TakePhotoOptions = PickFileOptions & {
+  preferredCameraDevice?: 'front' | 'rear';
+};
+declare function takePhoto(options?: TakePhotoOptions): Promise<string | null>;
+
+declare const ImageGallery: {
+  pickImage: typeof pickImage;
+  pickMultipleImage: typeof pickMultipleImage;
+  pickMedia: typeof pickMedia;
+  pickMultipleMedia: typeof pickMultipleMedia;
+  takePhoto: typeof takePhoto;
+};
+
+declare const ImageSaver: {
+  saveBytesImage(options: {
+      image: ArrayBuffer;
+      quality?: number;
+      name?: string;
+  }): Promise<boolean>;
+  saveBase64Image(options: {
+      image: string;
+      quality?: number;
+      name?: string;
+  }): Promise<boolean>;
+  saveNetworkImage(options: {
+      url: string;
+      quality?: number;
+      name?: string;
+  }): Promise<boolean>;
+};
+
+declare function set<T>(key: string, value: T): Promise<boolean>;
+declare function get<T>(key: string): Promise<T | null>;
+declare function remove(key: string): Promise<boolean>;
+declare const Storage: {
+  set: typeof set;
+  get: typeof get;
+  remove: typeof remove;
+};
+
+type PermissionStatus = {
+  isDenied: boolean;
+  isGranted: boolean;
+  isLimited: boolean;
+  isPermanentlyDenied: boolean;
+  isProvisional: boolean;
+  isRestricted: boolean;
+};
+type PermissionType = 'accessMediaLocation' | 'accessNotificationPolicy' | 'activityRecognition' | 'appTrackingTransparency' | 'audio' | 'bluetoothAdvertise' | 'bluetoothConnect' | 'bluetoothScan' | 'calendarFullAccess' | 'calendarWriteOnly' | 'camera' | 'contacts' | 'criticalAlerts' | 'ignoreBatteryOptimizations' | 'manageExternalStorage' | 'mediaLibrary' | 'microphone' | 'nearbyWifiDevices' | 'notification' | 'photos' | 'photosAddOnly' | 'reminders' | 'requestInstallPackages' | 'scheduleExactAlarm' | 'sensors' | 'sensorsAlways' | 'sms' | 'speech' | 'storage' | 'systemAlertWindow';
+declare function getPermissionStatus(type: PermissionType): Promise<PermissionStatus>;
+declare function requestPermission(type: PermissionType): Promise<PermissionStatus>;
+
+declare function launchUrl(url: string): Promise<boolean>;
+
+declare function openScriptingApp<T>(options: {
+  url: string;
+  params?: {
+      [key: string]: any;
+  };
+}): Promise<T | null>;
+
+declare const Navigation: {
+  launchUrl: typeof launchUrl;
+  openScriptingApp: typeof openScriptingApp;
+};
+
+/**
+* 取消请求的token
+*
+* 同一个token可以用于多个请求
+*/
+declare class CancelToken {
+  readonly token: string;
+  private _isCancelled;
+  get isCancelled(): boolean;
+  /**
+   * 调用cancel方法后所有请求都会被取消
+   */
+  cancel(): void;
+}
+/**
+* 网络请求 CancelToken
+*/
+declare function useCancelToken(): {
+  get: () => CancelToken | undefined;
+  create: () => CancelToken;
+};
+
+declare function loadBytes(options: {
+  url: string;
+  noCache?: boolean;
+  timeout?: number;
+  debugLabel?: string;
+  headers?: {
+      [key: string]: any;
+  };
+  cancelToken?: CancelToken;
+}): Promise<number[] | null>;
+
+declare function loadFont(options: {
+  family: string;
+  urls: string[];
+  type?: 'otf' | 'ttf';
+}): Promise<boolean>;
+
+declare function loadJson<T>(options: {
+  url: string;
+  noCache?: boolean;
+  timeout?: number;
+  debugLabel?: string;
+  headers?: {
+      [key: string]: any;
+  };
+  queryParameters?: {
+      [key: string]: any;
+  };
+  cancelToken?: CancelToken;
+}): Promise<T | null>;
+
+declare function loadString<T>(options: {
+  url: string;
+  noCache?: boolean;
+  timeout?: number;
+  debugLabel?: string;
+  headers?: {
+      [key: string]: any;
+  };
+  queryParameters?: {
+      [key: string]: any;
+  };
+  cancelToken?: CancelToken;
+}): Promise<T | null>;
+
+type RequestOptions = {
+  url: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD' | 'PATCH';
+  data?: any;
+  isFormData?: boolean;
+  contentType?: string;
+  responseType?: 'json' | 'plain' | 'bytes';
+  sendTimeout?: number;
+  receiveTimeout?: number;
+  connectTimeout?: number;
+  cancelToken?: CancelToken;
+  queryParameters?: {
+      [key: string]: any;
+  };
+  preserveHeaderCase?: boolean;
+  debugLabel?: string;
+};
+declare function fetch<T>(options: RequestOptions): Promise<T>;
+
+type MultipartFileOptions = {
+  filename?: string;
+  headers?: {
+      [key: string]: string[];
+  };
+};
+declare class MultipartFile {
+  type: string;
+  value: string | number[];
+  filename?: string | undefined;
+  headers?: {
+      [key: string]: string[];
+  } | undefined;
+  static fromBytes(bytes: number[], options?: MultipartFileOptions): MultipartFile;
+  static fromFile(filePath: string, options?: MultipartFileOptions): MultipartFile;
+  static fromString(string: string, options?: MultipartFileOptions): MultipartFile;
+  constructor(type: string, value: string | number[], filename?: string | undefined, headers?: {
+      [key: string]: string[];
+  } | undefined);
+  toJson(): {
+      type: string;
+      value: string | number[];
+      filename: string | undefined;
+      headers: {
+          [key: string]: string[];
+      } | undefined;
+  };
+}
+declare class FormData {
+  private _fields;
+  constructor();
+  static fromMap(map: {
+      [name: string]: string | string[] | MultipartFile | MultipartFile[];
+  }): FormData;
+  static getValue(formData: FormData): {
+      [name: string]: any;
+  };
+}
+/**
+* Example:
+*  ```ts
+* postFormData({
+*    url: 'https://example.com/api/upload-avatar',
+*    data: FormData.fromMap({
+*      file: MultipartFile.fromFile('/xx/file/path', {
+*        filename: 'avatar.png'
+*      }),
+*      destDir: '/avatar'
+*    })
+*  })
+* ```
+*/
+declare function postFormData<T>(options: RequestOptions & {
+  data: FormData;
+}): Promise<T>;
+
+declare const Request: {
+  loadString: typeof loadString;
+  loadJson: typeof loadJson;
+  loadBytes: typeof loadBytes;
+  loadFont: typeof loadFont;
+  postFormData: typeof postFormData;
+};
+
+type SocketIOOptions = {};
+
+declare class SocketIO {
+  private key;
+  url: string;
+  private _eventMap;
+  constructor(key: string, url: string);
+  connect(): void;
+  isConnected(): Promise<boolean | null>;
+  on<T>(event: string, callback: (data: T) => void): void;
+  once<T>(event: string, callback: (data: T) => void): void;
+  off<T>(event: string, callback: (data: T) => void): void;
+  emit(event: string, data?: any): void;
+  emitWithAck(event: string, data?: any): Promise<unknown>;
+  close(): void;
+  dispose(): void;
+  static open(url: string, options?: SocketIOOptions): Promise<SocketIO>;
+}
+
 declare global {
   const console: {
       log: (...args: any[]) => void;
@@ -3187,5 +3267,5 @@ declare global {
   }
 }
 
-export { AbsorbPointer, type AbsorbPointerProps, type AixsDirection, type Alignment, AnimatedAlign, type AnimatedAlignProps, AnimatedContainer, type AnimatedContainerProps, AnimatedOpacity, type AnimatedOpacityProps, AnimatedPadding, type AnimatedPaddingProps, AnimatedPositioned, type AnimatedPositionedProps, AnimatedRotation, type AnimatedRotationProps, AnimatedScale, type AnimatedScaleProps, AnimatedSize, type AnimatedSizeProps, AnimatedSlide, type AnimatedSlideProps, type AnimationControllerIntialOptions, type AnimationInitalOptions, type AnimationStatus, type AnimationStatusListener, type AnimationValue, type AppLifeCycleState, AspectRatio, type AspectRatioProps, AutoSizeText, type AutoSizeTextProps, type Axis, BackdropFilter, type BackdropFilterProps, Baseline, type BaselineProps, type BlendMode, type BlurStyle, type BorderRadius, type BorderSide, BottomNavigationBarItem, type BottomNavigationBarItemProps, type BoxConstraints, type BoxDecoration, type BoxFit, type BoxShadow, type Brightness, CSSFilter, type CSSFilterMatrix, CSSFilterPresets, type CSSFilterPresetsEffect, type CSSFilterPresetsProps, type CSSFilterProps, CancelToken, Center, type CenterProps, ChildrenRule, CircularProgressIndicator, type CircularProgressIndicatorProps, type Clip, ClipOval, type ClipOvalProps, ClipRRect, type ClipRRectProps, ClipRect, type ClipRectProps, Clipboard, type Color, Column, type ColumnProps, type ComponentCallback, type ComponentEffect, type ComponentMemo, type ComponentProps, CompositedTransformFollower, type CompositedTransformFollowerProps, CompositedTransformTarget, type CompositedTransformTargetProps, ConstrainedBox, type ConstrainedBoxProps, type Consumer, type ConsumerProps, Container, type ContainerProps, type Context, type CrossAxisAlignment, CupertinoActionSheet, CupertinoActionSheetAction, type CupertinoActionSheetActionProps, type CupertinoActionSheetProps, CupertinoActivityIndicator, type CupertinoActivityIndicatorProps, CupertinoAlertDialog, type CupertinoAlertDialogProps, CupertinoButton, type CupertinoButtonProps, CupertinoContextMenu, CupertinoContextMenuAction, type CupertinoContextMenuActionProps, type CupertinoContextMenuProps, CupertinoDatePicker, type CupertinoDatePickerMode, type CupertinoDatePickerProps, CupertinoDialogAction, type CupertinoDialogActionProps, type CupertinoDialogRoute, CupertinoFormRow, type CupertinoFormRowProps, CupertinoFormSection, type CupertinoFormSectionProps, type CupertinoIcons, CupertinoListSection, type CupertinoListSectionProps, CupertinoListTile, CupertinoListTileChevron, type CupertinoListTileProps, type CupertinoModalPopupRoute, CupertinoNavigationBar, CupertinoNavigationBarBackButton, type CupertinoNavigationBarBackButtonProps, type CupertinoNavigationBarProps, type CupertinoPageRoute, CupertinoPageScaffold, type CupertinoPageScaffoldProps, CupertinoPicker, CupertinoPickerDefaultSelectionOverlay, type CupertinoPickerDefaultSelectionOverlayProps, type CupertinoPickerProps, CupertinoScrollerBar, type CupertinoScrollerBarProps, CupertinoSearchTextField, type CupertinoSearchTextFieldProps, CupertinoSegmentedControl, type CupertinoSegmentedControlProps, CupertinoSlider, type CupertinoSliderProps, CupertinoSlidingSegmentedControl, type CupertinoSlidingSegmentedControlProps, CupertinoSliverNavigationBar, type CupertinoSliverNavigationBarProps, CupertinoSliverRefreshControl, type CupertinoSliverRefreshControlProps, CupertinoSwitch, type CupertinoSwitchProps, CupertinoTabBar, type CupertinoTabBarProps, CupertinoTextField, type CupertinoTextFieldProps, CupertinoTimerPicker, type CupertinoTimerPickerMode, type CupertinoTimerPickerProps, type Curve, CustomScrollView, type CustomScrollViewProps, type DatePickerDateOrder, DefaultTabController, type DefaultTabControllerProps, DefaultTextStyle, type DefaultTextStyleProps, Device, Dialog, type DialogRoute, type DismissDirection, Dismissable, type DismissableProps, type Dispatch, DottedBorder, type DottedBorderProps, DottedLine, type DottedLineProps, type DragDownDetails, type DragEndDetails, type DragUpdateDetails, type EdgeInsets, type EdgeInsetsDirectional, type EffectCallback, type EffectDestructor, type EventPosition, Expanded, type ExpandedProps, FilePicker, type FilterQuality, FittedBox, type FittedBoxProps, type FontStyle, type FontWeight, FormData, type FunctionComponent, GestureDetector, type GestureDetectorProps, Gif, type GifProps, type GridDelegateWithFixedCrossAxisCount, type GridDelegateWithMaxCrossAxisExtent, GridView, type GridViewCommonProps, type GridViewFixedCrossAxisCountProps, type GridViewMaxCrossAxisExtentProps, type GridViewProps, Hero, type HeroProps, Icon, type IconProps, IgnorePointer, type IgnorePointerProps, Image, type ImageByteFormat, type ImageFilter, type ImageFilterBlur, type ImageFilterCompose, type ImageFilterDilate, type ImageFilterErode, type ImageFilterMaxtrix, type ImageProps, type ImageRepeat, ImageSaver, type IndexRouteObject, IndexedStack, type IndexedStackProps, InkWell, type InkWellProps, type InternalWidgetRender, type IntervalCurve, IntrinsicHeight, type IntrinsicHeightProps, IntrinsicWidth, type IntrinsicWidthProps, type KeyProps, LayerLink, type LinearGradient, LinearProgressIndicator, type LinearProgressIndicatorProps, ListView, type ListViewProps, type LocaleState, type MainAxisAlignment, type MainAxisSize, Material, type MaterialPageRoute, type MaterialProps, type MediaQueryData, type ModalBottomSheetRoute, MultipartFile, type MutableRefObject, Navigation, Navigator, type NavigatorProps, type NavigatorRef, NestedScrollView, type NestedScrollViewProps, NetworkImage, type NetworkImageProps, type NormalCurve, type NormalRouteObject, type Offset, Opacity, type OpacityProps, type OtherwiseRouteObject, type OverScrollNotification, OverflowBox, type OverflowBoxProps, Overlay, type OverlayProps, type OverlayVisibilityMode, Padding, type PaddingProps, type PageInfo, type PageParamsUpdateEvent, type PagePopEvent, type PagePopResultEvent, type PagePushEvent, type PageRoute, PageView, type PageViewProps, type PaintRect, type PaintSize, type PermissionStatus, type PermissionType, PopScope, type PopScopeProps, Positioned, type PositionedProps, type Provider, type ProviderProps, type PushNamedRouteOptions, type PushRouteOptions, QrImage, type QrImageProps, type RadialGradient, type Reducer, type ReducerAction, type ReducerState, type RefObject, type RefProps, RefreshIndicator, type RefreshIndicatorProps, type RelativeRect, type RenderNode, type RenderObject, type RenderObjectShowOnScreenOptions, ReorderableListView, type ReorderableListViewProps, RepaintBoundary, type RepaintBoundaryProps, type RepaintBoundaryRef, Request, type RequestOptions, RichText, type RichTextProps, RotatedBox, type RotatedBoxProps, type RouteObject, type RouteParams, Router, RouterProvider, Row, type RowProps, SafeArea, type SafeAreaProps, type ScaleEndDetails, type ScaleStartDetails, type ScaleUpdateDetails, ScriptingAppEvents, type ScriptingDeviceInfo, type ScrollEndNotification, type ScrollMetrics, type ScrollNotification, ScrollNotificationListener, type ScrollNotificationListenerProps, type ScrollOrientation, type ScrollPhysics, type ScrollStartNotification, type ScrollUpdateNotification, type ScrollViewKeyboardDismissBehavior, Scrollbar, type ScrollbarProps, type SetStateAction, Share, type ShareResultStatus, SingleChildScrollView, type SingleChildScrollViewProps, SizedBox, type SizedBoxProps, SliverFillRemaining, type SliverFillRemainingProps, SliverFixedHeightPersistentHeader, type SliverFixedHeightPersistentHeaderProps, SliverToBoxAdapter, type SliverToBoxAdapterProps, SocketIO, Spacer, type SpacerProps, Stack, type StackFit, type StackProps, type StateInitializer, StickyHeader, type StickyHeaderProps, Storage, StringSvg, type StringSvgProps, type StrokeCap, type StrutStyle, Svg, type SvgProps, Swiper, SwiperPagination, type SwiperPaginationProps, type SwiperProps, Switch, type SwitchProps, type TabAlignment, TabBar, type TabBarIndicatorSize, type TabBarProps, TabBarView, type TabBarViewProps, TabController, TabControllerConsumer, TabControllerContext, type TabControllerProps, TabControllerProvider, type TabControllerRef, type TabControllerRenderNode, type TapDownDetails, type TapUpDetails, Text, type TextAlign, type TextBaseLine, type TextDecoration, type TextDecorationStyle, type TextDirection, TextField, type TextFieldProps, type TextHeightBehavior, type TextInputType, type TextLeadingDistribution, type TextOverflow, type TextProps, TextSpan, type TextSpanProps, type TextStyle, type TextWidthBasis, type ThemeState, Ticker, TickerManager, TickerManagerConsumer, TickerManagerProvider, type TickerManagerProviderProps, type TickerManagerRef, type TileMode, TransformRotate, type TransformRotateProps, TransformScale, type TransformScaleProps, TransformTranslate, type TransformTranslateProps, type Tween, type TweenSequence, type TweenSequenceConstantItem, type TweenSequenceItem, type TweenType, type TypedParams, UnconstrainedBox, type UnconstrainedBoxProps, type UserScrollNotification, type Velocity, type VerticalDirection, type VirtualNode, WebView, WebViewController, type WebViewProps, type WebViewSettings, Wrap, type WrapAlignment, type WrapCrossAlignment, type WrapProps, type WrappedRouter, addAppEvent, createContext, createElement, fetch, index as fs, getPermissionStatus, isApiEnabled, requestPermission, runApp, useAnimationController, useByTheme, useCallback, useCancelToken, useContext, useEffect, useLayerLink, useLocale, useMediaQuery, useMemo, useNavigator, useReducer, useRef, useRouteParams, useRouter, useSelector, useState, useTabController, useThemeState, useTickerManager };
+export { AbsorbPointer, type AbsorbPointerProps, type AixsDirection, type Alignment, AnimatedAlign, type AnimatedAlignProps, AnimatedContainer, type AnimatedContainerProps, AnimatedOpacity, type AnimatedOpacityProps, AnimatedPadding, type AnimatedPaddingProps, AnimatedPositioned, type AnimatedPositionedProps, AnimatedRotation, type AnimatedRotationProps, AnimatedScale, type AnimatedScaleProps, AnimatedSize, type AnimatedSizeProps, AnimatedSlide, type AnimatedSlideProps, type AnimationControllerIntialOptions, type AnimationInitalOptions, type AnimationStatus, type AnimationStatusListener, type AnimationValue, AppEvent, type AppLifeCycleState, AspectRatio, type AspectRatioProps, AutoSizeText, type AutoSizeTextProps, type Axis, BackdropFilter, type BackdropFilterProps, Baseline, type BaselineProps, BatteryState, type BlendMode, type BlurStyle, type BorderRadius, type BorderSide, BottomNavigationBarItem, type BottomNavigationBarItemProps, type BoxConstraints, type BoxDecoration, type BoxFit, type BoxShadow, type Brightness, CSSFilter, type CSSFilterMatrix, CSSFilterPresets, type CSSFilterPresetsEffect, type CSSFilterPresetsProps, type CSSFilterProps, CancelToken, Center, type CenterProps, ChildrenRule, CircularProgressIndicator, type CircularProgressIndicatorProps, type Clip, ClipOval, type ClipOvalProps, ClipRRect, type ClipRRectProps, ClipRect, type ClipRectProps, Clipboard, type Color, Column, type ColumnProps, type ComponentCallback, type ComponentEffect, type ComponentMemo, type ComponentProps, CompositedTransformFollower, type CompositedTransformFollowerProps, CompositedTransformTarget, type CompositedTransformTargetProps, ConstrainedBox, type ConstrainedBoxProps, type Consumer, type ConsumerProps, Container, type ContainerProps, type Context, type CrossAxisAlignment, CupertinoActionSheet, CupertinoActionSheetAction, type CupertinoActionSheetActionProps, type CupertinoActionSheetProps, CupertinoActivityIndicator, type CupertinoActivityIndicatorProps, CupertinoAlertDialog, type CupertinoAlertDialogProps, CupertinoButton, type CupertinoButtonProps, CupertinoColorsWithBrightness, CupertinoContextMenu, CupertinoContextMenuAction, type CupertinoContextMenuActionProps, type CupertinoContextMenuProps, CupertinoDatePicker, type CupertinoDatePickerMode, type CupertinoDatePickerProps, CupertinoDialogAction, type CupertinoDialogActionProps, type CupertinoDialogRoute, CupertinoFormRow, type CupertinoFormRowProps, CupertinoFormSection, type CupertinoFormSectionProps, type CupertinoIcons, CupertinoListSection, type CupertinoListSectionProps, CupertinoListTile, CupertinoListTileChevron, type CupertinoListTileProps, type CupertinoModalPopupRoute, CupertinoNavigationBar, CupertinoNavigationBarBackButton, type CupertinoNavigationBarBackButtonProps, type CupertinoNavigationBarProps, type CupertinoPageRoute, CupertinoPageScaffold, type CupertinoPageScaffoldProps, CupertinoPicker, CupertinoPickerDefaultSelectionOverlay, type CupertinoPickerDefaultSelectionOverlayProps, type CupertinoPickerProps, CupertinoScrollerBar, type CupertinoScrollerBarProps, CupertinoSearchTextField, type CupertinoSearchTextFieldProps, CupertinoSegmentedControl, type CupertinoSegmentedControlProps, CupertinoSlider, type CupertinoSliderProps, CupertinoSlidingSegmentedControl, type CupertinoSlidingSegmentedControlProps, CupertinoSliverNavigationBar, type CupertinoSliverNavigationBarProps, CupertinoSliverRefreshControl, type CupertinoSliverRefreshControlProps, CupertinoSwitch, type CupertinoSwitchProps, CupertinoTabBar, type CupertinoTabBarProps, CupertinoTextField, type CupertinoTextFieldProps, CupertinoTimerPicker, type CupertinoTimerPickerMode, type CupertinoTimerPickerProps, type Curve, CustomScrollView, type CustomScrollViewProps, type DatePickerDateOrder, DefaultTabController, type DefaultTabControllerProps, DefaultTextStyle, type DefaultTextStyleProps, Device, type DeviceOrientation, Dialog, type DialogRoute, type DismissDirection, Dismissable, type DismissableProps, type Dispatch, DottedBorder, type DottedBorderProps, DottedLine, type DottedLineProps, type DragDownDetails, type DragEndDetails, type DragUpdateDetails, type EdgeInsets, type EdgeInsetsDirectional, type EffectCallback, type EffectDestructor, type EventPosition, Expanded, type ExpandedProps, type FilterQuality, FittedBox, type FittedBoxProps, type FontStyle, type FontWeight, FormData, type FunctionComponent, GestureDetector, type GestureDetectorProps, Gif, type GifProps, type GridDelegateWithFixedCrossAxisCount, type GridDelegateWithMaxCrossAxisExtent, GridView, type GridViewCommonProps, type GridViewFixedCrossAxisCountProps, type GridViewMaxCrossAxisExtentProps, type GridViewProps, Hero, type HeroProps, Icon, type IconProps, IgnorePointer, type IgnorePointerProps, Image, type ImageByteFormat, type ImageFilter, type ImageFilterBlur, type ImageFilterCompose, type ImageFilterDilate, type ImageFilterErode, type ImageFilterMaxtrix, ImageGallery, type ImageProps, type ImageRepeat, ImageSaver, type IndexRouteObject, IndexedStack, type IndexedStackProps, InkWell, type InkWellProps, type InternalWidgetRender, type IntervalCurve, IntrinsicHeight, type IntrinsicHeightProps, IntrinsicWidth, type IntrinsicWidthProps, type KeyProps, LayerLink, type LinearGradient, LinearProgressIndicator, type LinearProgressIndicatorProps, ListView, type ListViewProps, type LocaleState, type MainAxisAlignment, type MainAxisSize, Material, type MaterialPageRoute, type MaterialProps, type MediaQueryData, type ModalBottomSheetRoute, MultipartFile, type MutableRefObject, Navigation, Navigator, type NavigatorProps, type NavigatorRef, NestedScrollView, type NestedScrollViewProps, NetworkImage, type NetworkImageProps, type NormalCurve, type NormalRouteObject, type Offset, Opacity, type OpacityProps, type Orientation, type OtherwiseRouteObject, type OverScrollNotification, OverflowBox, type OverflowBoxProps, Overlay, type OverlayProps, type OverlayVisibilityMode, Padding, type PaddingProps, type PageInfo, type PageParamsUpdateEvent, type PagePopEvent, type PagePopResultEvent, type PagePushEvent, type PageRoute, PageView, type PageViewProps, type PaintRect, type PaintSize, type PermissionStatus, type PermissionType, PopScope, type PopScopeProps, Positioned, type PositionedProps, type Provider, type ProviderProps, type PushNamedRouteOptions, type PushRouteOptions, QrImage, type QrImageProps, type RadialGradient, type Reducer, type ReducerAction, type ReducerState, type RefObject, type RefProps, RefreshIndicator, type RefreshIndicatorProps, type RelativeRect, type RenderNode, type RenderObject, type RenderObjectShowOnScreenOptions, ReorderableListView, type ReorderableListViewProps, RepaintBoundary, type RepaintBoundaryProps, type RepaintBoundaryRef, Request, type RequestOptions, RichText, type RichTextProps, RotatedBox, type RotatedBoxProps, type RouteObject, type RouteParams, Router, RouterProvider, Row, type RowProps, SafeArea, type SafeAreaProps, type ScaleEndDetails, type ScaleStartDetails, type ScaleUpdateDetails, type ScriptingDeviceInfo, type ScrollEndNotification, type ScrollMetrics, type ScrollNotification, ScrollNotificationListener, type ScrollNotificationListenerProps, type ScrollOrientation, type ScrollPhysics, type ScrollStartNotification, type ScrollUpdateNotification, type ScrollViewKeyboardDismissBehavior, Scrollbar, type ScrollbarProps, type SetStateAction, Share, type ShareResultStatus, SingleChildScrollView, type SingleChildScrollViewProps, SizedBox, type SizedBoxProps, SliverFillRemaining, type SliverFillRemainingProps, SliverFixedHeightPersistentHeader, type SliverFixedHeightPersistentHeaderProps, SliverToBoxAdapter, type SliverToBoxAdapterProps, SocketIO, Spacer, type SpacerProps, Stack, type StackFit, type StackProps, type StateInitializer, StickyHeader, type StickyHeaderProps, Storage, StringSvg, type StringSvgProps, type StrokeCap, type StrutStyle, Svg, type SvgProps, Swiper, SwiperPagination, type SwiperPaginationProps, type SwiperProps, Switch, type SwitchProps, type SystemUIOverlayStyle, type TabAlignment, TabBar, type TabBarIndicatorSize, type TabBarProps, TabBarView, type TabBarViewProps, TabController, TabControllerConsumer, TabControllerContext, type TabControllerProps, TabControllerProvider, type TabControllerRef, type TabControllerRenderNode, type TapDownDetails, type TapUpDetails, Text, type TextAlign, type TextBaseLine, type TextDecoration, type TextDecorationStyle, type TextDirection, TextField, type TextFieldProps, type TextHeightBehavior, type TextInputType, type TextLeadingDistribution, type TextOverflow, type TextProps, TextSpan, type TextSpanProps, type TextStyle, type TextWidthBasis, type ThemeMode, type ThemeState, Ticker, TickerManager, TickerManagerConsumer, TickerManagerProvider, type TickerManagerProviderProps, type TickerManagerRef, type TileMode, TransformRotate, type TransformRotateProps, TransformScale, type TransformScaleProps, TransformTranslate, type TransformTranslateProps, type Tween, type TweenSequence, type TweenSequenceConstantItem, type TweenSequenceItem, type TweenType, type TypedParams, UnconstrainedBox, type UnconstrainedBoxProps, type UserScrollNotification, type Velocity, type VerticalDirection, type VirtualNode, WebView, WebViewController, type WebViewProps, type WebViewSettings, Wrap, type WrapAlignment, type WrapCrossAlignment, type WrapProps, type WrappedRouter, createContext, createElement, fetch, index as fs, getPermissionStatus, isApiEnabled, requestPermission, runApp, useAnimationController, useByTheme, useCallback, useCancelToken, useContext, useCupertinoColors, useEffect, useLayerLink, useLocale, useMediaQuery, useMemo, useNavigator, useReducer, useRef, useRouteParams, useRouter, useSelector, useState, useTabController, useThemeState, useTickerManager };
 export as namespace Scripting;

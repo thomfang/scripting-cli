@@ -11,7 +11,7 @@ import { Server, Socket } from 'socket.io'
 import * as utils from './utils'
 
 import Webpack from "webpack"
-import webpackConfig from './config/webpack.config'
+import getConfig from './config/webpack.config'
 
 export function startDevServer() {
   const args = minimist(process.argv.slice(2))
@@ -23,8 +23,11 @@ export function startDevServer() {
   const server = http.createServer(app)
   const io = new Server(server)
 
+
   let isStarted = false
   let connectedSockets: Socket[] = []
+
+  const webpackConfig = getConfig()
 
   webpackConfig.mode = 'development'
 

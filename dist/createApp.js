@@ -35,68 +35,68 @@ function createEntryFile(appName) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(` > Creating ${appName}/src/index.tsx ...`);
         const filePath = node_path_1.default.join(getAppDir(appName), '/src/index.tsx');
-        yield (0, promises_1.writeFile)(filePath, `
+        yield (0, promises_1.writeFile)(filePath, `import { runApp, createElement, RouterProvider, Router, Column, CupertinoNavigationBar, CupertinoPageScaffold, Svg, Text, Container, useCupertinoColors } from 'scripting'
+import Logo from './svgs/logo.svg'
 
-    import { runApp, createElement, RouterProvider, Router, Column, CupertinoNavigationBar, CupertinoPageScaffold, Svg, Text, Container, Color } from 'scripting'
-    import Logo from './svgs/logo.svg'
-    
-    function ScriptingLogo() {
-      return (
-        <Container
-          clipBehavior={'hardEdge'}
-          width={80}
-          height={80}
-          margin={{
-            vertical: 100,
-          }}
-          borderRadius={16}
-        >
-          <Svg src={Logo} />
-        </Container>
-      )
-    }
-    
-    function HomePage() {
-      const backgroundColor: Color = '#ffffff'
-      return (
-        <CupertinoPageScaffold
-          navigationBar={
-            <CupertinoNavigationBar
-              middle={
-                <Text>${appName}</Text>
-              }
-              backgroundColor={backgroundColor}
-            />
+function ScriptingLogo() {
+  return (
+    <Container
+      clipBehavior={'hardEdge'}
+      width={80}
+      height={80}
+      margin={{
+        vertical: 100,
+      }}
+      borderRadius={16}
+    >
+      <Svg src={Logo} />
+    </Container>
+  )
+}
+
+function HomePage() {
+  const cupertinoColors = useCupertinoColors()
+  const backgroundColor = cupertinoColors.systemBackground
+
+  return (
+    <CupertinoPageScaffold
+      navigationBar={
+        <CupertinoNavigationBar
+          middle={
+            <Text>${appName}</Text>
           }
+          backgroundColor={backgroundColor}
+        />
+      }
+    >
+      <Container
+        width={'infinity'}
+        height={'infinity'}
+        color={backgroundColor}
+      >
+        <Column
+          crossAxisAlignment={'center'}
         >
-          <Container
-            width={'infinity'}
-            height={'infinity'}
-            color={backgroundColor}
-          >
-            <Column
-              crossAxisAlignment={'center'}
-            >
-              <ScriptingLogo />
-              <Text>Welcome to Scripting!</Text>
-            </Column>
-          </Container>
-        </CupertinoPageScaffold>
-      )
-    }
-    
-    const router = new Router([
-      {
-        path: '/',
-        element: <HomePage />,
-      },
-    ])
-    
-    runApp(
-      <RouterProvider router={router} />
-    )
-    
-`, 'utf-8');
+          <ScriptingLogo />
+          <Text
+            color={cupertinoColors.label}
+          >Welcome to Scripting!</Text>
+        </Column>
+      </Container>
+    </CupertinoPageScaffold>
+  )
+}
+
+const router = new Router([
+  {
+    path: '/',
+    element: <HomePage />,
+  },
+])
+
+runApp(
+  <RouterProvider router={router} />
+)`, 'utf-8');
         console.log(chalk_1.default.green(` ✔️ Created ${appName}/src/index.tsx`));
     });
 }
@@ -185,16 +185,17 @@ function copyAssets(appName) {
 }
 function createVSCodeSettings(appName) {
     return __awaiter(this, void 0, void 0, function* () {
-        const destDir = node_path_1.default.join(process.cwd(), '.vscode');
+        const destDir = node_path_1.default.join(getAppDir(appName), '.vscode');
         if (!node_fs_1.default.existsSync(destDir)) {
-            yield (0, promises_1.mkdir)(destDir);
+            yield (0, promises_1.mkdir)(destDir, { recursive: true });
         }
-        yield (0, promises_1.copyFile)(node_path_1.default.join(__dirname, '../.vscode/settings.json'), node_path_1.default.join(getAppDir(appName), '.vscode/settings.json'));
+        yield (0, promises_1.copyFile)(node_path_1.default.join(__dirname, '../.vscode/settings.json'), node_path_1.default.join(destDir, 'settings.json'));
     });
 }
 function installDeps(appName) {
+    console.log(` > cd ${appName} && npm i -D ts-loader typescript file-loader`);
     (0, node_child_process_1.execSync)(`cd ${appName} && npm i -D ts-loader typescript file-loader`);
-    console.log(chalk_1.default.green(` ✔️ Scripting application ${chalk_1.default.bold(appName)} created!`));
+    console.log(chalk_1.default.green(` ✔️ Scripting application ${chalk_1.default.bold(appName)} is ready!`));
 }
 function createApp(appName) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -202,6 +203,7 @@ function createApp(appName) {
             console.log(chalk_1.default.red(`✖️ Invalid Scripting application name "${appName}"`));
             return;
         }
+        console.log(`Start creating ${appName} ...`);
         try {
             yield createAppDir(appName);
             yield createPackageJson(appName);
@@ -211,7 +213,7 @@ function createApp(appName) {
             yield copyAssets(appName);
             yield createVSCodeSettings(appName);
             installDeps(appName);
-            console.log(` ✔️ All done! Run ${chalk_1.default.bold(chalk_1.default.green('npm run dev'))} to start the dev server.`);
+            console.log(`All done! Run ${chalk_1.default.bold(chalk_1.default.green(`cd ${appName} && npm run dev`))} to start the dev server.`);
         }
         catch (e) {
             console.log(chalk_1.default.red(`✖️ Create Scripting application failed: ${e.message}`));

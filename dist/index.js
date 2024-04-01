@@ -10,7 +10,6 @@ const build_1 = require("./build");
 const createApp_1 = require("./createApp");
 function run() {
     const args = (0, minimist_1.default)(process.argv.slice(2));
-    // console.log(args)
     if (args['create'] != null) {
         (0, createApp_1.createApp)(args['create']);
     }
