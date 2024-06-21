@@ -31,7 +31,7 @@ export default class AppJsonPlugin implements WebpackPluginInstance {
         },
         (assets) => {
 
-          const appJson: {
+          const scriptJson: {
             name: string
             index: string
             hash: string
@@ -43,19 +43,21 @@ export default class AppJsonPlugin implements WebpackPluginInstance {
             assets: Object.keys(assets),
           }
 
-          const indexJs = appJson.assets.find(filePath => filePath.match(/\.js$/i) != null)
+          const indexJs = scriptJson.assets.find(
+            filePath => filePath.match(/\.js$/i) != null
+          )
 
           if (indexJs != null) {
             const [appName, ...others] = indexJs.split('/')
             const filePath = others[others.length - 1]
-            appJson.name = appName
-            appJson.index = filePath
-            appJson.hash = filePath.replace('.js', '')
+            scriptJson.name = appName
+            scriptJson.index = filePath
+            scriptJson.hash = filePath.replace('.js', '')
 
             const indexJsSource = assets[indexJs]
 
-            appJson.assets = [
-              ...appJson.assets.filter(e => e !== indexJs),
+            scriptJson.assets = [
+              ...scriptJson.assets.filter(e => e !== indexJs),
               filePath,
             ]
 
@@ -65,8 +67,8 @@ export default class AppJsonPlugin implements WebpackPluginInstance {
           }
 
           compilation.emitAsset(
-            'app.json',
-            new RawSource(JSON.stringify(appJson, null, 2))
+            'script.json',
+            new RawSource(JSON.stringify(scriptJson, null, 2))
           )
 
           // const appMap: {
@@ -107,7 +109,7 @@ export default class AppJsonPlugin implements WebpackPluginInstance {
 
           // Object.entries(appMap).forEach(([appName, content]) => {
           //   compilation.emitAsset(
-          //     appName + '/app.json',
+          //     appName + '/script.json',
           //     new RawSource(JSON.stringify(content, null, 2))
           //   )
           // })

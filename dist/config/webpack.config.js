@@ -7,6 +7,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const node_fs_1 = __importDefault(require("node:fs"));
 const chalk_1 = __importDefault(require("chalk"));
 const terser_webpack_plugin_1 = __importDefault(require("terser-webpack-plugin"));
+const webpack_1 = __importDefault(require("webpack"));
 const AppJsonPlugin_1 = __importDefault(require("./AppJsonPlugin"));
 function getConfig() {
     const baseDir = process.cwd();
@@ -87,6 +88,10 @@ function getConfig() {
         },
         plugins: [
             new AppJsonPlugin_1.default(),
+            new webpack_1.default.BannerPlugin({
+                banner: 'const Scripting = require("scripting");',
+                raw: true
+            }),
         ],
         devtool: false,
         externals: {

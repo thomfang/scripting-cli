@@ -80,9 +80,9 @@ function startDevServer() {
             if (isStarted) {
                 printDevServerAddress();
                 console.log(chalk_1.default.gray(` ~ Sent update event to ${connectedSockets.length} client(s)`));
-                const appJson = yield (0, promises_1.readFile)(node_path_1.default.resolve(process.cwd(), 'build/app.json'), 'utf-8');
+                const scriptJson = yield (0, promises_1.readFile)(node_path_1.default.resolve(process.cwd(), 'build/script.json'), 'utf-8');
                 for (const socket of connectedSockets) {
-                    socket.emit('update', appJson);
+                    socket.emit('update', scriptJson);
                 }
             }
             else {

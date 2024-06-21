@@ -22,28 +22,28 @@ class AppJsonPlugin {
                 // 确保所有资源已被插件添加到 compilation
                 stage: Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
             }, (assets) => {
-                const appJson = {
+                const scriptJson = {
                     name: '',
                     index: '',
                     hash: '',
                     assets: Object.keys(assets),
                 };
-                const indexJs = appJson.assets.find(filePath => filePath.match(/\.js$/i) != null);
+                const indexJs = scriptJson.assets.find(filePath => filePath.match(/\.js$/i) != null);
                 if (indexJs != null) {
                     const [appName, ...others] = indexJs.split('/');
                     const filePath = others[others.length - 1];
-                    appJson.name = appName;
-                    appJson.index = filePath;
-                    appJson.hash = filePath.replace('.js', '');
+                    scriptJson.name = appName;
+                    scriptJson.index = filePath;
+                    scriptJson.hash = filePath.replace('.js', '');
                     const indexJsSource = assets[indexJs];
-                    appJson.assets = [
-                        ...appJson.assets.filter(e => e !== indexJs),
+                    scriptJson.assets = [
+                        ...scriptJson.assets.filter(e => e !== indexJs),
                         filePath,
                     ];
                     compilation.deleteAsset(indexJs);
                     compilation.emitAsset(filePath, indexJsSource);
                 }
-                compilation.emitAsset('app.json', new RawSource(JSON.stringify(appJson, null, 2)));
+                compilation.emitAsset('script.json', new RawSource(JSON.stringify(scriptJson, null, 2)));
                 // const appMap: {
                 //   [appName: string]: {
                 //     appName: string
@@ -76,7 +76,7 @@ class AppJsonPlugin {
                 // })
                 // Object.entries(appMap).forEach(([appName, content]) => {
                 //   compilation.emitAsset(
-                //     appName + '/app.json',
+                //     appName + '/script.json',
                 //     new RawSource(JSON.stringify(content, null, 2))
                 //   )
                 // })

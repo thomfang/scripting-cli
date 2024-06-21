@@ -100,6 +100,10 @@ export default function getConfig() {
     },
     plugins: [
       new AppJsonPlugin(),
+      new webpack.BannerPlugin({
+        banner: 'const Scripting = require("scripting");',
+        raw: true
+      }),
     ],
     devtool: false,
     externals: {

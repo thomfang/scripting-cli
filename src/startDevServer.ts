@@ -37,28 +37,23 @@ export function startDevServer() {
     'Start running webpack compiler in watch mode...'
   )
 
-  compiler.watch(
-    {
+  compiler.watch({}, (err, stats) => {
+    utils.clearConsole()
+    if (err) {
+      console.log(
+        chalk.red(' ✖️ webpack compile error: \n') + err
+      )
+    } else {
+      console.log(stats?.toString({
+        chunks: false,
+        colors: true,
+      }))
 
-    },
-    (err, stats) => {
-      utils.clearConsole()
-      if (err) {
-        console.log(
-          chalk.red(' ✖️ webpack compile error: \n') + err
-        )
-      } else {
-        console.log(stats?.toString({
-          chunks: false,
-          colors: true,
-        }))
-
-        if (stats?.toJson().errorsCount === 0) {
-          onCompileDone()
-        }
+      if (stats?.toJson().errorsCount === 0) {
+        onCompileDone()
       }
     }
-  )
+  })
 
   async function onCompileDone() {
     if (isStarted) {
@@ -68,16 +63,16 @@ export function startDevServer() {
         chalk.gray(` ~ Sent update event to ${connectedSockets.length} client(s)`)
       )
 
-      const appJson = await readFile(
+      const scriptJson = await readFile(
         path.resolve(
           process.cwd(),
-          'build/app.json'
+          'build/script.json'
         ),
         'utf-8'
       )
 
       for (const socket of connectedSockets) {
-        socket.emit('update', appJson)
+        socket.emit('update', scriptJson)
       }
     } else {
       start()
