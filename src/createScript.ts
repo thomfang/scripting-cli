@@ -34,8 +34,8 @@ async function createEntryFile(scriptName: string) {
     `import { Column, CupertinoNavigationBar, CupertinoPageScaffold, Text, Container, useCupertinoColors, navigator, GestureDetector, Script, Center, CupertinoButton, } from 'scripting'
 
 function App() {
-  const cupertinoColors = useCupertinoColors()
-  const backgroundColor = cupertinoColors.systemBackground
+  const colors = useCupertinoColors()
+  const backgroundColor = colors.systemBackground
 
   return (
     <CupertinoPageScaffold
@@ -50,7 +50,7 @@ function App() {
     >
       <Center>
         <Text
-          color={cupertinoColors.label}
+          color={colors.label}
         >Welcome to Scripting!</Text>
       </Center>
     </CupertinoPageScaffold>
@@ -87,7 +87,7 @@ async function createPackageJson(scriptName: string) {
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "npx scripting-cli dev",
+    "start": "npx scripting-cli dev",
     "build": "npx scripting-cli build"
   }
 }`,
@@ -107,13 +107,13 @@ async function createReadme(scriptName: string) {
 
   await writeFile(
     filePath,
-    `# ${scriptName} - A Scripting script
+    `# ${scriptName} - A script for Scripting app.
 
 ## Start dev server
 
-\`npm run dev\`
+\`npm start\`
 
-## Build App
+## Build Script
 
 \`npm run build\`
 `,
@@ -146,19 +146,20 @@ async function createTSConfig(scriptName: string) {
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "module": "CommonJS",
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "jsx": "react",
     "jsxFactory": "createElement",
-    "baseUrl": "src",
-    "typeRoots": ["./types"],
-    // "paths": {
-    //   "@/*": [
-    //     "src/*"
-    //   ]
-    // }
+    "paths": {
+      "scripting": [
+        "./types/scripting.d.ts"
+      ]
+    }
   },
   "include": [
-    "src"
+    "src",
+    "types/assets.d.ts",
+    "types/global.d.ts",
   ],
 }`,
     'utf-8'
@@ -169,7 +170,7 @@ async function createTSConfig(scriptName: string) {
   )
 }
 
-async function copyAsset(scriptName: string, fileName: string) {
+async function copyDtsAsset(scriptName: string, fileName: string) {
   console.log(` > Creating ${scriptName}/types/${fileName}.d.ts ...`)
   await copyFile(
     path.join(__dirname, `../public/${fileName}.d.ts`),
@@ -181,9 +182,9 @@ async function copyAsset(scriptName: string, fileName: string) {
 }
 
 async function copyAssets(scriptName: string) {
-  await copyAsset(scriptName, 'scripting')
-  await copyAsset(scriptName, 'global')
-  await copyAsset(scriptName, 'assets')
+  await copyDtsAsset(scriptName, 'scripting')
+  await copyDtsAsset(scriptName, 'global')
+  await copyDtsAsset(scriptName, 'assets')
 
   // console.log(` > Creating ${scriptName}/src/svgs/logo.svg ...`)
   // await copyFile(
@@ -244,7 +245,7 @@ export async function createScript(scriptName: string) {
 
     console.log(
       `All done! Run ${chalk.bold(
-        chalk.green(`cd ${scriptName} && npm run dev`)
+        chalk.green(`cd ${scriptName} && npm start`)
       )} to start the dev server.`
     )
 

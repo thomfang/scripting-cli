@@ -104,11 +104,71 @@ type ConsumerProps<T> = {
 };
 type Provider<T> = (props: ProviderProps<T>) => VirtualNode;
 type Consumer<T> = (props: ConsumerProps<T>) => VirtualNode;
+/**
+* Passing Data Deeply with Context.
+*/
 type Context<T> = {
   readonly id: number;
   readonly Provider: Provider<T>;
   readonly Consumer: Consumer<T>;
 };
+/**
+* Create a data context.
+*
+* @returns `Context` object
+*
+* @example
+* ```tsx
+* import { Color, createContext, navigator } from 'scripting'
+*
+* type ThemeData = {
+*   backgroundColor: Color
+* }
+* const lightTheme: ThemeData = {
+*   backgroundColor: 'white'
+* }
+* const darkTheme: ThemeData = {
+*   backgroundColor: 'black'
+* }
+*
+* const ThemeDataContext = createContext<ThemeData>()
+*
+* function ThemeDataProvider({
+*   children
+* }: {
+*   children: JSX.Element
+* }) {
+*   const {isDarkMode } = useThemeState()
+*   const themeData = isDarkMode ? darkTheme : lightTheme
+*
+*   return (
+*     <ThemeDataContext.Provider value={themeData}>
+*       {children}
+*     </ThemeDataContext.Provider>
+*   )
+* }
+*
+* function App() {
+*   const theme = useContext(ThemeDataContext)
+*
+*   return (
+*    <Container
+*      width="infinity"
+*      height="infinity"
+*      color={theme.backgroundColor}
+*    />
+*   )
+* }
+*
+* navigator.push({
+*   element: (
+*     <ThemeDataProvider>
+*       <App />
+*     </ThemeDataProvider>
+*   )
+* })
+* ```
+*/
 declare function createContext<T>(): Context<T>;
 
 /**
@@ -447,11 +507,72 @@ type RelativeRect = {
       height: number;
   };
 };
-type ColorValueHex = `#${string}`;
-type ColorValueRgb = `rgb(${string})`;
-type ColorValueRgba = `rgba(${string})`;
-type ColorValueHsl = `hsl(${string})`;
-type ColorValueHsla = `hsla(${string})`;
+/**
+* Hex string: `#FF0033` or `#333`
+*/
+type ColorStringHex = `#${string}`;
+/**
+* RGB string: `rgb(255,0,0)`
+*
+*  - R: red, 0 - 255
+*  - G: green, 0 - 255
+*  - B: blue, 0 - 255
+*/
+type ColorStringRGB = `rgb(${number},${number},${number})`;
+/**
+* RGBA string: `rgba(0,0,0,0.5)`.
+* This is same as css color string.
+*
+*  - R: red, 0 - 255
+*  - G: green, 0 - 255
+*  - B: blue, 0 - 255
+*  - A: alpha, 0 - 1
+*/
+type ColorStringRGBA = `rgba(${number},${number},${number},${number})`;
+type ColorStringHSL = `hsl(${number},${number},${number})`;
+type ColorStringHSLA = `hsla(${number},${number},${number},${number})`;
+/**
+* RGBA object: `{r: 255, g: 255, b: 0, a: 255}`
+* This is same as flutter `Color.fromRGBA(r, g, b, a)`,
+* and the `a`(alpha) is the value in range of 0 - 255.
+*
+*  - R: red, 0 - 255
+*  - G: green, 0 - 255
+*  - B: blue, 0 - 255
+*  - A: alpha, 0 - 255
+*/
+type ColorObjectRGBA = {
+  r: number;
+  g: number;
+  b: number;
+  /**
+   * Alpha, 0 ~ 255
+   */
+  a: number;
+};
+/**
+* RGBO object: `{r: 255, g: 255, b: 0, a: 1}`
+* This is same as flutter `Color.fromRGBO(r, g, b, o)`,
+* and the `o`(opacity) is the value in range of 0 - 1.
+*
+*  - R: red, 0 - 255
+*  - G: green, 0 - 255
+*  - B: blue, 0 - 255
+*  - O: opacity, 0 - 1
+*/
+type ColorObjectRGBO = {
+  r: number;
+  g: number;
+  b: number;
+  /**
+   * Opacity, 0 ~ 1
+   */
+  o: number;
+};
+type ColorObjectHexAndOpacity = {
+  hex: ColorStringHex;
+  opacity: number;
+};
 /**
 * CSS color strings according to CSS Color Module Level 3.
 * Hex, RGB(A), HSL(A) and X11 keywords are supported.
@@ -465,26 +586,7 @@ type ColorValueHsla = `hsla(${string})`;
 *  const hexAndOpacity: Color = { hex: '#ff0000', opacity: 0.5 }
 *  const cssKeyword: Color = 'transparent'
 */
-type Color = CSSColorKeywords | ColorValueHex | ColorValueHsl | ColorValueHsla | ColorValueRgb | ColorValueRgba | {
-  r: number;
-  g: number;
-  b: number;
-  /**
-   *alpha, 0 ~ 255
-   */
-  a: number;
-} | {
-  r: number;
-  g: number;
-  b: number;
-  /**
-   * opacity, 0 ~ 1
-   */
-  o: number;
-} | {
-  hex: ColorValueHex;
-  opacity: number;
-};
+type Color = CSSColorKeywords | ColorStringHex | ColorStringHSL | ColorStringHSLA | ColorStringRGB | ColorStringRGBA | ColorObjectRGBA | ColorObjectRGBO | ColorObjectHexAndOpacity;
 /**
 * How a box should be inscribed into another box.
 */
@@ -1348,7 +1450,13 @@ type ScriptingDeviceInfo = {
   systemScriptCode?: string;
 };
 type ThemeState = {
+  /**
+   * Whether the current system is in dark mode.
+   */
   isDarkMode: boolean;
+  /**
+   * The `Brightness` value of the current system.
+   */
   brightness: Brightness;
 };
 type LocaleState = {
@@ -1358,17 +1466,33 @@ type ShareResultStatus = 'success' | 'dismissed' | 'unavailable';
 type AppLifeCycleState = 'resumed' | 'inactive' | 'paused' | 'detached' | 'hidden';
 
 /**
+* Use a data by theme state.
+*
+* You can provide two values ​​of the same type, representing `dark` and `light` modes
+* respectively. The `dark` value is used when the system is in dark mode,
+* otherwise the `light` value is used.
+*
 * @group Hooks
+* @example
+* ```tsx
+* function App() {
+*   const backgroundColor = useByTheme<Color>({
+*     light: 'white',
+*     dark: 'black',
+*   })
+*
+*   return (
+*     <Container
+*       color={backgroundColor}
+*     />
+*   )
+* }
+* ```
 */
 declare function useByTheme<T>({ dark, light }: {
   dark: T;
   light: T;
 }): T;
-
-/**
-* @group Hooks
-*/
-declare function useLocale(): string;
 
 /**
 * @group Hooks
@@ -1382,6 +1506,9 @@ declare function useMediaQuery(): MediaQueryData;
 
 declare class AppEventEmitter<R> {
   private event;
+  /**
+   * @internal
+   */
   constructor(event: string);
   on(listener: (data: R) => void): void;
   off(listener: (data: R) => void): void;
@@ -1390,20 +1517,56 @@ declare class AppEventEmitter<R> {
 * @group UI
 */
 declare class AppEvents {
+  /**
+   * @internal
+   */
+  constructor();
+  /**
+   * @example
+   * ```ts
+   * AppEvents.appLifeCycleStateChanged.on((state: AppLifeCycleState) => {
+   *   console.log(state)
+   * })
+   * ```
+   */
   static appLifeCycleStateChanged: AppEventEmitter<AppLifeCycleState>;
+  /**
+   * @example
+   * ```ts
+   * AppEvents.mediaQueryDataChanged.on((data: MediaQueryData) => {
+   *   console.log(data)
+   * })
+   * ```
+   */
   static mediaQueryDataChanged: AppEventEmitter<MediaQueryData>;
+  /**
+   * @example
+   * ```ts
+   * AppEvents.localeChanged.on((state: LocaleState) => {
+   *   console.log(state)
+   * })
+   * ```
+   */
   static localeChanged: AppEventEmitter<LocaleState>;
-  static appDispose: AppEventEmitter<void>;
 }
 
 /**
+* Read and set the clipboard
+*
+* If you want to quickly paste text from other apps, you can go to
+* Settings - Scripting - Paste from Other Apps - Allow
+*
 * @group Ability
 */
 declare class Clipboard {
   /**
+   * @internal
+   */
+  constructor();
+  /**
    * Copy text to clipboard.
    * @param text Text content
-   * @returns
+   * @returns Whether the copy operation was successful.
    */
   static copyText(text: string): Promise<boolean>;
   /**
@@ -2049,7 +2212,7 @@ declare class Image extends EventListenerManager {
   set width(value: number);
   private _height;
   get height(): number;
-  set heihgt(value: number);
+  set height(value: number);
   private _complete;
   get complete(): boolean;
   private _onload?;
@@ -3093,7 +3256,7 @@ type CupertinoTimerPickerProps = {
 declare const CupertinoTimerPicker: FunctionComponent<CupertinoTimerPickerProps>;
 
 type WidgetUIColor = "systemRed" | "systemGreen" | "systemBlue" | "systemOrange" | "systemYellow" | "systemPink" | "systemPurple" | "systemTeal" | "systemIndigo" | "systemGray" | "systemGray2" | "systemGray3" | "systemGray4" | "systemGray5" | "systemGray6" | "label" | "secondaryLabel" | "tertiaryLabel" | "quaternaryLabel" | "placeholderText" | "separator" | "opaqueSeparator" | "link" | "darkText" | "lightText" | "black" | "darkGray" | "lightGray" | "white" | "gray" | "red" | "green" | "blue" | "cyan" | "yellow" | "magenta" | "orange" | "purple" | "brown" | "clear" | "systemFill" | "secondarySystemFill" | "tertiarySystemFill" | "quaternarySystemFill" | "systemBackground" | "secondarySystemBackground" | "tertiarySystemBackground" | "systemGroupedBackground" | "secondarySystemGroupedBackground" | "tertiarySystemGroupedBackground";
-type WidgetColor = ColorValueHex | WidgetUIColor;
+type WidgetColor = ColorStringHex | WidgetUIColor;
 type WidgetCommonProps = {
   width?: number | 'infinity';
   height?: number | 'infinity';
@@ -4482,8 +4645,61 @@ type NavigatorProps = {
 */
 declare function Navigator({ router, ref, }: NavigatorProps): JSX.Element;
 /**
+* This hook use with `<Navigator />` widget.
+*
+* `useRouter` is used to access the application's router, and `userNavigator` is used to access the router of `<Navigator/>`.
+*
 * @group Hooks
 * @group Navigation
+* @example
+* ```tsx
+* import { Router, navigator, Navigator, Text, CupertinoButton, } from 'scripting'
+*
+* function Page1() {
+*   const router = useNavigator()
+*
+*   return (
+*     <Center>
+*       <CupertinoButton onPressed={async () => {
+*         const result = await router.pushNamed({
+*           path: '/page2',
+*         })
+*         console.log(result) // output: 123
+*       }}>
+*         <Text>Open Page 2</Text>
+*       </CupertinoButton>
+*    </Center>
+*   )
+* }
+*
+* function Page2() {
+*   const router = useNavigator()
+*
+*   return (
+*     <Center>
+*       <CupertinoButton onPressed={() => {
+*         router.pop(123)
+*       }}>
+*         <Text>Back</Text>
+*       </CupertinoButton>
+*     </Center>
+*   )
+* }
+*
+* const router = new Router([
+*   {
+*     path: '/',
+*     index: true,
+*     element: <Page1 />
+*   }
+* ])
+*
+* navigator.push({
+*   element: (
+*     <Navigator router={router} />
+*   )
+* })
+* ```
 */
 declare function useNavigator(): WrappedRouter;
 
@@ -5639,22 +5855,43 @@ type SystemUIOverlayStyle = {
 * @group Ability
 */
 declare class Device {
+  /**
+   * @internal
+   */
+  constructor();
   static get model(): string;
   /**
-   * The locale used by the current App, can be set via Device.setLocale
+   * The current locale used by the system, such as `"en_US"`.
    */
-  static get locale(): string;
   static get systemLocale(): string;
+  /**
+   * User preferred locales, such as `["en_US", "zh_CN"].
+   */
   static get systemLocales(): string[];
+  /**
+   * The current locale language tag, such as `"en-US"`
+   */
   static get systemLanguageTag(): string;
+  /**
+   * The current locale language code, such as `"en"`
+   */
   static get sysmtemLanguageCode(): string;
+  /**
+   * The current locale country code, such as `"US"`
+   */
   static get systemCountryCode(): string | undefined;
+  /**
+   * The current locale script code, such as `"Hans"` of `"zh_CN_Hans"`
+   */
   static get systemScriptCode(): string | undefined;
   /**
    * This API is intentionally terse since it calls default platform behavior.
    * It is not suitable for precise control of the system's haptic feedback module.
    */
   static hapticFeedback(type: ImpactFeedBackStyle): void;
+  /**
+   * The battery level in range of 0 - 100
+   */
   static getBatteryLevel(): Promise<number>;
   static getBatteryState(): Promise<BatteryState>;
   /**
@@ -5663,12 +5900,6 @@ declare class Device {
    * @returns unsubscribe function
    */
   static onBatteryStateChanged(listener: (state: BatteryState) => void): () => void;
-  /**
-   * Set app locale
-   * @param locale Please use the standard locale format, or you can use value of `Device.sysmtemLocales`
-   * @returns
-   */
-  static setLocale(locale: string): void;
   /**
    * Describes which theme will be used by app.
    *  - `system`: Use either the light or dark theme based on what the user has selected in the system settings.
@@ -5698,21 +5929,68 @@ declare class Device {
   static isWakeLockEnabled(): Promise<boolean>;
 }
 
+type BottomSheetAction = {
+  /**
+   * The label of the sheet action.
+   */
+  label: string;
+  /**
+   * Set whether it is the default action, which can be more prominent visually.
+   */
+  isDefaultAction?: boolean;
+  /**
+   * Set whether it is a destructive action, which will be visually different from a normal action.
+   */
+  isDestructiveAction?: boolean;
+};
 /**
 * @group UI
 * @group Basic
 */
 declare class Dialog {
+  /**
+   * @internal
+   */
+  constructor();
+  /**
+   * Display a loading UI.
+   * @param options The loading configuration object.
+   * @param options.message Set the loading information you want to prompt.
+   * @param options.color Set the loading UI color.
+   */
   static showLoading(options: {
       message?: string;
       color?: Color;
   }): void;
+  /**
+   * Hide the current loading UI.
+   */
   static hideLoading(): void;
+  /**
+   * Display an Alert UI.
+   * @param options The alert UI configuration object.
+   * @param options.content The text content.
+   * @param options.title The title of the alert UI.
+   * @param options.buttonLabel Set the button label you want.
+   */
   static showAlert(options: {
       content: string;
       title?: string;
       buttonLabel?: string;
   }): Promise<void>;
+  /**
+   * Display a Prompt UI.
+   * @param options The prompt UI configuration object
+   * @param options.title You need to provide a title to describe the purpose.
+   * @param options.message A supporting information.
+   * @param options.defaultValue The default value for the `TextField`.
+   * @param options.selectAll Whether the value of the `TextField` is selected.
+   * @param options.placeholder The placeholder text for the `TextField`.
+   * @param options.cancelLabel The cancel button label.
+   * @param options.confirmLabel The confirm button label.
+   * @param options.keyboardType You can specify the type of keyboard to invoke.
+   * @returns String result or null.
+   */
   static showPrompt(options: {
       title: string;
       message?: string;
@@ -5724,25 +6002,62 @@ declare class Dialog {
       confirmLabel?: string;
       keyboardType?: TextInputType;
   }): Promise<string | null>;
+  /**
+   * Display a Confirm UI.
+   * @param options The confirm UI configuration object.
+   * @param options.content Contents to be confirmed.
+   * @param options.title You can set a title.
+   * @param options.cancelLabel The cancel button label.
+   * @param options.confirmLabel The confirm button label.
+   * @returns Whether it has been confirmed.
+   */
   static showConfirm(options: {
       content: string;
       title?: string;
       cancelLabel?: string;
       confirmLabel?: string;
   }): Promise<boolean>;
+  /**
+   * Display a Toast message.
+   * @param options
+   * @param options.content Contents to be displayed.
+   * @param options.duration The duration of the display, in milliseconds.
+   */
   static showToast(options: {
       content: string;
       duration?: number;
   }): Promise<void>;
+  /**
+   * Display a modal bottom sheet with multiple content options. When the user clicks an item, the index of the item will be returned. If the user clicks Cancel, null will be returned.
+   * @param options
+   * @param options.title You can set a top title.
+   * @param options.message You can set a tip message.
+   * @param options.cancelButton You can control whether to show the cancel button, defaults to `true`.
+   * @param options.actions The actions of the UI.
+   * @returns When the user clicks an item, the index of the item will be returned. If the user clicks Cancel, null will be returned.
+   *
+   * @example
+   * ```ts
+   * const index = await Dialog.showBottomSheet({
+   *   message: 'Do you want to delete this image?',
+   *   actions: [{
+   *     label: 'Delete',
+   *     isDestructiveAction: true,
+   *   }]
+   * })
+   *
+   * if (index == null) {
+   *   // User canceled.
+   * } else if (index === 0) {
+   *   // User tap the `delete` action.
+   * }
+   * ```
+   */
   static showBottomSheet(options: {
       title?: string;
       message?: string;
       cancelButton?: boolean;
-      actions: {
-          label: string;
-          isDefaultAction?: boolean;
-          isDestructiveAction?: boolean;
-      }[];
+      actions: BottomSheetAction[];
   }): Promise<number | null>;
 }
 
@@ -5752,6 +6067,7 @@ declare class HeadlessWebView {
   private _id;
   private _consoleMessageCallbackId?;
   private _shouldAllowRequestCallbackId?;
+  private _isActived;
   set onConsoleMessage(callback: (level: ConsoleMessageLevel, message: string) => void);
   set shouldAllowRequest(callback: (url: string) => Promise<boolean>);
   loadUrl(url: string): Promise<void>;
@@ -5818,6 +6134,10 @@ type TakePhotoOptions = PickFileOptions & {
 * @group Ability
 */
 declare class ImageGallery {
+  /**
+   * @internal
+   */
+  constructor();
   static pickImage(options?: PickFileOptions): Promise<string | null>;
   static pickMultipleImage(options?: PickFileOptions): Promise<string[]>;
   static pickMedia(options?: PickFileOptions): Promise<string | null>;
@@ -5830,6 +6150,10 @@ declare class ImageGallery {
 * @group Ability
 */
 declare class ImageSaver {
+  /**
+   * @internal
+   */
+  constructor();
   static saveBytesImage(options: {
       image: ArrayBuffer;
       quality?: number;
@@ -5876,6 +6200,10 @@ type SaveFileOption = {
 */
 declare class FilePicker {
   /**
+   * @internal
+   */
+  constructor();
+  /**
    * Pick single file
    * @example
    * ```ts
@@ -5901,8 +6229,9 @@ declare class FilePicker {
    * Save file dialog
    * @example
    * ```ts
-   * const  outputFilePath = await FilePicker.saveFile({
-   *   bytes: [0, 0, 0, 0, ...], // some bytes array
+   * const outputFilePath = await FilePicker.saveFile({
+   *   // some bytes array, each element is a int in 0 - 255
+   *   bytes: [0, 0, 0, 0, ...],
    *   fileName: 'test.txt',
    * })
    * if (outputFilePath == null) {
@@ -5926,36 +6255,153 @@ declare class FilePicker {
 
 type Encoding = 'utf-8' | 'ascii' | 'latin1';
 /**
+* The result of calling the POSIX `stat()` function on a file system object.
+*/
+type FileStat = {
+  creationDate: number;
+  /**
+   * The time of the last change to the data of the file system object.
+   */
+  modificationDate: number;
+  /**
+   * The type of the underlying file system object.
+   *  - `"file"`
+   *  - `"directory"`
+   *  - `"link"`
+   *  - `"unixDomainSock"`
+   *  - `"pipe"`
+   *  - `"notFound"`,
+   */
+  type: string;
+  size: number;
+};
+/**
+* A convenient interface to the contents of the file system, and the primary means of interacting with it.
 * @group Ability
 */
 declare class FileManager {
+  /**
+   * @internal
+   */
+  constructor();
+  /**
+   * Wether the iCloud is enabled.
+   * If you are not logged into iCloud, or have not authorized the Scripting app to use iCloud features,
+   * this method will return false.
+   */
   static isiCloudEnabled(): Promise<boolean>;
+  /**
+   * Returns the path to iCloud's `Documents` directory, if iCloud is disabled,
+   * this method would throw an error, you should use `isiCloudEnabled` to check it.
+   */
   static iCloudDocumentsDirectory(): Promise<string>;
+  /**
+   * Returns a boolean value indicating whether the file is targeted for storage in iCloud.
+   * @param filePath The path of the file
+   */
   static isFileStoredIniCloud(filePath: string): Promise<boolean>;
+  /**
+   * Returns a boolean value indicating whether the file is downloaded from iCloud.
+   * @param filePath  The path of the file
+   */
   static isiCloudFileDownloaded(filePath: string): Promise<boolean>;
+  /**
+   * Download a iCloud file.
+   * @param filePath The path of the file
+   * @returns Returns a `boolean` indicating whether the file was downloaded successful.
+   */
   static downloadFileFromiCloud(filePath: string): Promise<boolean>;
   static getShareUrlOfiCloudFile(filePath: string, expirationTimestamp?: number): Promise<string | null>;
+  /**
+   * Returns the path to shared App Group `Documents` directory.
+   */
   static documentsDirectory(): Promise<string>;
+  /**
+   * Returns the path to the temporary directory.
+   */
   static temporaryDirectory(): Promise<string>;
+  /**
+   * Creates a directory at the specified path string.
+   * @param path The path of the directory.
+   * @param recursive If `true`, this method creates any nonexistent parent directories as part of creating the directory in path. If `false`, this method fails if any of the intermediate parent directories does not exist.
+   */
   static createDirectory(path: string, recursive?: boolean): Promise<void>;
+  /**
+   * Creates a symbolic link at the specified path that points to an item at the given path.
+   * @param path The file path at which to create the new symbolic link. The last path component of the path issued as the name of the link.
+   * @param target The file path that contains the item to be pointed to by the link. In other words, this is the destination of the link.
+   */
   static createLink(path: string, target: string): Promise<void>;
+  /**
+   * Copies the item at the specified path to a new location synchronously.
+   * @param path The path to the file or directory you want to move.
+   * @param newPath The path at which to place the copy of `path`. This path must include the name of the file or directory in its new location.
+   */
   static copyFile(path: string, newPath: string): Promise<void>;
+  /**
+   * Performs a shallow search of the specified directory and returns the paths of any contained items.
+   * Optionally recurses into sub-directories.
+   * @param path The path to the directory whose contents you want to enumerate.
+   * @param recursive Whether recurses into sub-directories.
+   * @returns The result is an `string[]` for the directories, files, and links.
+   */
   static readDirectory(path: string, recursive?: boolean): Promise<string[]>;
+  /**
+   * Returns a boolean value that indicates whether a file or directory exists at a specified path.
+   * @param path The path of the file or directory
+   */
   static exists(path: string): Promise<boolean>;
+  /**
+   * Whether path refers to a file.
+   */
   static isFile(path: string): Promise<boolean>;
+  /**
+   * Whether path refers to a directory.
+   */
   static isDirectory(path: string): Promise<boolean>;
   static isLink(path: string): Promise<boolean>;
+  /**
+   * Reads the entire file contents as a string using the given `Encoding`.
+   * @param path The path of the file
+   * @param encoding
+   * @returns String contents.
+   */
   static readAsString(path: string, encoding?: Encoding): Promise<string>;
+  /**
+   * Reads the entire file contents as a list of bytes.
+   * @param path The path of the file
+   * @returns Returns a `number[]` that completes with the list of bytes that is the contents of the file.
+   */
   static readAsBytes(path: string): Promise<number[]>;
+  /**
+   * Writes a string to a file.
+   * @param path The path of the file
+   * @param contents String contents.
+   * @param encoding
+   */
   static writeAsString(path: string, contents: string, encoding?: Encoding): Promise<void>;
+  /**
+   *  Writes a list of bytes to a file.
+   * @param path The path of the file
+   * @param data The elements of `data` should be integers in the range 0 to 255.
+   */
   static writeAsBytes(path: string, data: number[]): Promise<void>;
-  static stat(path: string): Promise<{
-      creationDate: number;
-      modificationDate: number;
-      type: string;
-      size: number;
-  }>;
+  /**
+   * If `path` is a symbolic link then it is resolved and results for the resulting file are returned.
+   * @param path
+   * @returns `FileStat` object
+   */
+  static stat(path: string): Promise<FileStat>;
+  /**
+   * Moves the file or directory at the specified path to a new location synchronously.
+   * @param path The path to the file or directory you want to move.
+   * @param newPath The new path for the item in `path`. This path must include the name of the file or directory in its new location.
+   */
   static rename(path: string, newPath: string): Promise<void>;
+  /**
+   * Removes the file or directory at the specified path.
+   * @param path A path string indicating the file or directory to remove. If the path specifies a directory, the contents of that directory are recursively removed.
+   */
   static remove(path: string): Promise<void>;
   /**
    * Zips the file or directory contents at the specified `srcPath` to the `destPath`.
@@ -6002,6 +6448,13 @@ type LaunchMode = 'externalApplication' | 'externalNonBrowserApplication' | 'inA
 * @param mode support varies significantly by platform. Platforms will fall back to other modes if the requested mode is not supported.
 * @returns Returns true if the URL was launched successfully, otherwise either returns
 * false or throws a [PlatformException] depending on the failure.
+*
+* @example
+* ```ts
+* import { Script, launchUrl } from 'scripting'
+* const url = Script.createOpenURLScheme("My Script")
+* launchUrl(url)
+* ```
 */
 declare function launchUrl(url: string, mode?: LaunchMode): Promise<boolean>;
 
@@ -6009,6 +6462,10 @@ declare function launchUrl(url: string, mode?: LaunchMode): Promise<boolean>;
 * @group Ability
 */
 declare class Notification {
+  /**
+   * @internal
+   */
+  constructor();
   static show({ title, body, }: {
       title: string;
       body: string;
@@ -6021,6 +6478,10 @@ declare class Notification {
 * @group UI
 */
 declare class QRCode {
+  /**
+   * @internal
+   */
+  constructor();
   /**
    * Parse QRCode file.
    * @example
@@ -6175,21 +6636,44 @@ declare class Response {
   private _statusText;
   private _headers;
   private _ok;
+  /**
+   * @internal
+   */
   constructor(body: Blob | null, init?: ResponseInit);
   json(): Promise<any>;
   text(): Promise<string>;
   blob(): Promise<Blob>;
   formData(): Promise<FormData>;
   arrayBuffer(): Promise<ArrayBuffer>;
+  /**
+   * Get response status code.
+   */
   get status(): number;
+  /**
+   * Get response status text.
+   */
   get statusText(): string;
+  /**
+   * Get response headers.
+   */
   get headers(): Headers;
+  /**
+   * Whether response is ok.
+   */
   get ok(): boolean;
 }
 type RequestInit = {
   method?: string;
   headers?: HeadersInit;
   body?: any;
+  /**
+   * Request timeout in milliseconds.
+   */
+  timeout?: number;
+  /**
+   * `CancelToken` instance, you can call the `cancel` method at the
+   * appropriate time to cancel the request.
+   */
   cancelToken?: CancelToken;
   /**
    * Debug label will display in log panel.
@@ -6249,27 +6733,51 @@ declare function downloadFile(options: {
   debugLabel?: string;
 }): Promise<boolean>;
 
+type LoadDataOptions = {
+  url: string;
+  noCache?: boolean;
+  /**
+   * Request timeout in milliseconds.
+   */
+  timeout?: number;
+  debugLabel?: string;
+  headers?: Record<string, any>;
+  queryParameters?: Record<string, any>;
+  cancelToken?: CancelToken;
+};
+/**
+* Send a request and returns a JSON.
+* @group Ability
+* @group Network
+* @example
+* ```ts
+* const jsonData = await loadJson({
+*   url: 'https://example.com/json_data',
+*   timeout: 1000 * 10 // 10s
+* })
+* ```
+*/
+declare function loadJson<T>(options: LoadDataOptions): Promise<T | null>;
+
 /**
 * Send a request and returns a bytes array.
 * @group Ability
 * @group Network
 * @example
 * ```ts
-* const bytes = await loadBytes('https://example.com/data')
+* const bytes = await loadBytes({
+*   url: 'https://example.com/data'
+* })
 * const uint8Array = new Uint8Array(bytes)
 * ```
 */
-declare function loadBytes(options: {
-  url: string;
-  noCache?: boolean;
-  timeout?: number;
-  debugLabel?: string;
-  headers?: {
-      [key: string]: any;
-  };
-  cancelToken?: CancelToken;
-}): Promise<number[] | null>;
+declare function loadBytes(options: LoadDataOptions): Promise<number[] | null>;
 
+type LoadFontOptions = {
+  family: string;
+  urls: string[];
+  type?: 'otf' | 'ttf';
+};
 /**
 * Load font from network.
 * @group Ability
@@ -6288,43 +6796,16 @@ declare function loadBytes(options: {
 *
 * // After the font loaded, you can use in `Text`
 * function App() {
-*    return (
-*      <Text
-*        family={'Source Code Pro'}
-*        fontWeight={500} // use SemidBold
-*      >Hello</Text>
+*   return (
+*     <Text
+*       family={'Source Code Pro'}
+*       fontWeight={500} // use SemidBold
+*     >Hello</Text>
 *   )
 * }
 * ```
 */
-declare function loadFont(options: {
-  family: string;
-  urls: string[];
-  type?: 'otf' | 'ttf';
-}): Promise<boolean>;
-
-/**
-* Send a request and returns a JSON.
-* @group Ability
-* @group Network
-* @example
-* ```ts
-* const jsonData = await loadJson('https://example.com/json_data')
-* ```
-*/
-declare function loadJson<T>(options: {
-  url: string;
-  noCache?: boolean;
-  timeout?: number;
-  debugLabel?: string;
-  headers?: {
-      [key: string]: any;
-  };
-  queryParameters?: {
-      [key: string]: any;
-  };
-  cancelToken?: CancelToken;
-}): Promise<T | null>;
+declare function loadFont(options: LoadFontOptions): Promise<boolean>;
 
 /**
 * Send a request and returns a string.
@@ -6333,28 +6814,22 @@ declare function loadJson<T>(options: {
 * @group Network
 * @example
 * ```ts
-* const result = await loadString('https://example.com')
+* const result = await loadString({
+*   url: 'https://example.com'
+* })
 * console.log(result)
 * ```
 */
-declare function loadString<T>(options: {
-  url: string;
-  noCache?: boolean;
-  timeout?: number;
-  debugLabel?: string;
-  headers?: {
-      [key: string]: any;
-  };
-  queryParameters?: {
-      [key: string]: any;
-  };
-  cancelToken?: CancelToken;
-}): Promise<T | null>;
+declare function loadString<T>(options: LoadDataOptions): Promise<T | null>;
 
 /**
 * @group Ability
 */
 declare class Script {
+  /**
+   * @internal
+   */
+  constructor();
   /**
    * Get current script name.
    */
@@ -6459,6 +6934,10 @@ declare class Script {
 */
 declare class Share {
   /**
+   * @internal
+   */
+  constructor();
+  /**
    * Share text
    * @param options
    * @param options.text Share text content
@@ -6562,6 +7041,10 @@ declare class SocketIO {
 * @group Ability
 */
 declare class Storage {
+  /**
+   * @internal
+   */
+  constructor();
   static setItem<T>(key: string, value: T): Promise<boolean>;
   static getItem<T>(key: string): Promise<T | null>;
   static removeItem(key: string): Promise<boolean>;
@@ -6584,7 +7067,12 @@ type WidgetInitializer = (context: WidgetContext) => Promise<VirtualNode>;
 */
 declare class Widget {
   /**
-   * Render iOS widget by a `WidgetInitializer`
+   * @internal
+   */
+  constructor();
+  /**
+   * Render iOS widget by a `WidgetInitializer`.
+   * This method will be ignored when script run in app.
    *
    * You cannot use `FunctionComponent` or non-iOS widgets(like `Column` `Padding`)
    * when building iOS widget UI.
@@ -6602,15 +7090,31 @@ declare class Widget {
    *  - `WidgetDivider`
    *
    * @param func A `WidgetInitializer` function, call access the `WidgetFamily` and `WidgetDisplaySize`
+   *
+   * @example
+   * ```tsx
+   * import { Widget } from 'scripting'
+   *
+   * async function MyWidget() {
+   *   return (
+   *     <WidgetText>Hello!</WidgetText>
+   *   )
+   * }
+   *
+   * Widget.render(MyWidget)
+   * ```
    */
   static render(func: WidgetInitializer): Promise<void>;
   /**
    * Present a preview of the widget.
-   * While working on you widget, you my want to preview it in the app.
    *
-   * @param func A `WidgetInitializer` function
-   * @param family The `WidgetFamily` you want to preview
-   * @returns Promise that is fullfilled when the preview is dismissed
+   * While working on you widget, you my want to preview it in the app.
+   * Promise that is fullfilled when the preview is dismissed.
+   *
+   * @param func A `WidgetInitializer` function.
+   * @param options Preview configutation object.
+   * @param options.family The `WidgetFamily` you want to preview.
+   * @param options.widgetParameter Set the `widgetParameter` for `Script.widgetParameter`.
    * @example
    * ```tsx
    * // widget.tsx
@@ -6682,4 +7186,4 @@ declare global {
   }
 }
 
-export { AbsorbPointer, type AbsorbPointerProps, type AixsDirection, Align, type AlignProps, type Alignment, AnimatedAlign, type AnimatedAlignProps, AnimatedContainer, type AnimatedContainerProps, AnimatedOpacity, type AnimatedOpacityProps, AnimatedPadding, type AnimatedPaddingProps, AnimatedPositioned, type AnimatedPositionedProps, AnimatedRotation, type AnimatedRotationProps, AnimatedScale, type AnimatedScaleProps, AnimatedSize, type AnimatedSizeProps, AnimatedSlide, type AnimatedSlideProps, Animation, AnimationBase, AnimationController, type AnimationControllerInitialOptions, type AnimationInitalOptions, type AnimationStatus, type AnimationStatusListener, type AnimationValue, AppEventEmitter, AppEvents, type AppLifeCycleState, AspectRatio, type AspectRatioProps, AssetImage, type AssetImageProps, AutoSizeText, type AutoSizeTextProps, type Axis, BackdropFilter, type BackdropFilterProps, Baseline, type BaselineProps, BatteryState, type BlendMode, Blob, type BlurStyle, type BorderRadius, type BorderSide, BottomNavigationBarItem, type BottomNavigationBarItemProps, type BoxConstraints, type BoxDecoration, type BoxFit, type BoxShadow, type BoxShape, type Brightness, type CSSColorKeywords, CSSFilter, type CSSFilterMatrix, CSSFilterPresets, type CSSFilterPresetsEffect, type CSSFilterPresetsProps, type CSSFilterProps, CancelToken, type CancelTokenHook, Canvas, type CanvasBlendMode, type CanvasColorSpace, type CanvasFillRule, type CanvasFontKerning, CanvasGradient, type CanvasImageSmoothingQuality, type CanvasLineCap, type CanvasLineJoin, CanvasRenderingContext2D, type CanvasTextMetrics, type CanvasTextRendering, Center, type CenterProps, type ChartsBarStyle, type ChartsCommonDataGroup, type ChartsDataGroup, type ChartsDomainAxisStyle, type ChartsLineStyle, type ChartsMeasureAxisStyle, type ChartsPointStyle, type ChartsStackedDataGroup, ChartsWidget, type ChartsWidgetProps, CircularProgressIndicator, type CircularProgressIndicatorProps, type Clip, ClipOval, type ClipOvalProps, ClipRRect, type ClipRRectProps, ClipRect, type ClipRectProps, Clipboard, type Color, type ColorValueHex, type ColorValueHsl, type ColorValueHsla, type ColorValueRgb, type ColorValueRgba, Column, type ColumnProps, type ComponentCallback, type ComponentEffect, type ComponentEffectEvent, type ComponentMemo, type ComponentProps, CompositedTransformOverlay, type CompositedTransformOverlayProps, type ConsoleMessageLevel, ConstrainedBox, type ConstrainedBoxProps, type Consumer, type ConsumerProps, Container, type ContainerProps, type Context, type CrossAxisAlignment, CupertinoActionSheet, CupertinoActionSheetAction, type CupertinoActionSheetActionProps, type CupertinoActionSheetProps, CupertinoActivityIndicator, type CupertinoActivityIndicatorProps, CupertinoAlertDialog, type CupertinoAlertDialogProps, CupertinoButton, type CupertinoButtonProps, type CupertinoColors, CupertinoColorsWithBrightness, CupertinoContextMenu, CupertinoContextMenuAction, type CupertinoContextMenuActionProps, type CupertinoContextMenuProps, CupertinoDatePicker, type CupertinoDatePickerMode, type CupertinoDatePickerProps, CupertinoDialogAction, type CupertinoDialogActionProps, type CupertinoDialogRoute, CupertinoFormRow, type CupertinoFormRowProps, CupertinoFormSection, type CupertinoFormSectionProps, type CupertinoIcons, CupertinoListSection, type CupertinoListSectionProps, CupertinoListTile, CupertinoListTileChevron, type CupertinoListTileProps, type CupertinoModalPopupRoute, CupertinoNavigationBar, CupertinoNavigationBarBackButton, type CupertinoNavigationBarBackButtonProps, type CupertinoNavigationBarProps, type CupertinoPageRoute, CupertinoPageScaffold, type CupertinoPageScaffoldProps, CupertinoPicker, CupertinoPickerDefaultSelectionOverlay, type CupertinoPickerDefaultSelectionOverlayProps, type CupertinoPickerProps, CupertinoPopupSurface, type CupertinoPopupSurfaceProps, CupertinoScrollerBar, type CupertinoScrollerBarProps, CupertinoSearchTextField, type CupertinoSearchTextFieldProps, CupertinoSegmentedControl, type CupertinoSegmentedControlProps, CupertinoSlider, type CupertinoSliderProps, CupertinoSlidingSegmentedControl, type CupertinoSlidingSegmentedControlProps, CupertinoSliverNavigationBar, type CupertinoSliverNavigationBarProps, CupertinoSliverRefreshControl, type CupertinoSliverRefreshControlProps, CupertinoSwitch, type CupertinoSwitchProps, CupertinoTabBar, type CupertinoTabBarProps, CupertinoTextField, type CupertinoTextFieldProps, CupertinoTheme, type CupertinoThemeProps, CupertinoTimerPicker, type CupertinoTimerPickerMode, type CupertinoTimerPickerProps, type Curve, CustomPaint, type CustomPaintProps, type CustomPaintRef, CustomScrollView, type CustomScrollViewProps, type DatePickerDateOrder, DecoratedBoxTransition, type DecoratedBoxTransitionProps, DefaultTabController, type DefaultTabControllerProps, DefaultTextStyle, type DefaultTextStyleProps, Device, type DeviceOrientation, Dialog, type DialogRoute, type DismissDirection, Dismissable, type DismissableProps, type Dispatch, DottedBorder, type DottedBorderProps, DottedLine, type DottedLineProps, type DragDownDetails, type DragEndDetails, type DragUpdateDetails, type EdgeInsets, type EdgeInsetsDirectional, type EffectDestructor, type EffectSetup, type Encoding, Event, type EventListener, EventListenerManager, type EventPosition, Expanded, type ExpandedProps, FadeTransition, type FadeTransitionProps, FileImage, type FileImageProps, FileManager, FilePicker, type FilterQuality, FittedBox, type FittedBoxProps, type FontStyle, type FontWeight, FormData, type FunctionComponent, GestureDetector, type GestureDetectorProps, type GetDirectoryPathOptions, Gif, type GifProps, type GridDelegateWithFixedCrossAxisCount, type GridDelegateWithMaxCrossAxisExtent, GridView, type GridViewCommonProps, type GridViewFixedCrossAxisCountProps, type GridViewMaxCrossAxisExtentProps, type GridViewProps, HStack, type HStackProps, Headers, type HeadersInit, HeadlessWebView, Hero, type HeroProps, HighlighterView, type HighlighterViewProps, type HitTestBehavior, Icon, type IconProps, IgnorePointer, type IgnorePointerProps, Image, type ImageByteFormat, ImageData, type ImageFilter, type ImageFilterBlur, type ImageFilterCompose, type ImageFilterDilate, type ImageFilterErode, type ImageFilterMaxtrix, ImageGallery, type ImageRepeat, ImageSaver, type ImpactFeedBackStyle, type IndexRouteObject, IndexedStack, type IndexedStackProps, InkWell, type InkWellProps, type InternalWidgetRender, type IntervalCurve, IntrinsicHeight, type IntrinsicHeightProps, IntrinsicWidth, type IntrinsicWidthProps, type KeyProps, KeyboardVisibility, type KeyboardVisibilityProps, type LaunchMode, type LinearGradient, LinearProgressIndicator, type LinearProgressIndicatorProps, ListView, type ListViewProps, type LocaleState, type MainAxisAlignment, type MainAxisSize, Material, type MaterialPageRoute, type MaterialProps, Matrix3, MediaQuery, type MediaQueryData, type MediaQueryProps, type MediaQueryRemoveEdgeInsetsProps, MediaQueryRemovePadding, MediaQueryRemoveViewInsets, MediaQueryRemoveViewPadding, MemoryImage, type MemoryImageProps, Menu, MenuAction, type MenuActionProps, type MenuProps, type ModalBottomSheetRoute, type MutableRefObject, Navigator, type NavigatorProps, type NavigatorRef, NestedScrollView, type NestedScrollViewProps, NetworkImage, type NetworkImageProps, type NormalCurve, type NormalRouteObject, Notification, type Offset, Offstage, type OffstageProps, Opacity, type OpacityProps, type Orientation, type OtherwiseRouteObject, type OverScrollNotification, OverflowBox, type OverflowBoxProps, type OverlayVisibilityMode, Padding, type PaddingProps, type PageInfo, type PagePopEvent, type PagePopResultEvent, type PageRoute, PageView, type PageViewProps, type PaintRect, type PaintSize, Path2D, type PickFileOption, type PickFileOptions, type PlaceholderAlignment, PopScope, type PopScopeProps, Positioned, type PositionedProps, PositionedTransition, type PositionedTransitionProps, type Provider, type ProviderProps, type PushNamedRouteOptions, type PushRouteOptions, QRCode, QrImage, type QrImageProps, type RadialGradient, type Reducer, type ReducerAction, type ReducerState, type RefObject, type RefProps, RefreshIndicator, type RefreshIndicatorProps, type RelativeRect, type RenderNode, type RenderObject, type RenderObjectShowOnScreenOptions, ReorderableColumn, type ReorderableColumnProps, ReorderableListView, type ReorderableListViewProps, ReorderableTable, type ReorderableTableProps, ReorderableTableRow, type ReorderableTableRowProps, ReorderableWrap, type ReorderableWrapProps, RepaintBoundary, type RepaintBoundaryProps, type RepaintBoundaryRef, Request, type RequestInit, Response, type ResponseInit, RichSelectableText, type RichSelectableTextProps, RichText, type RichTextProps, RotatedBox, type RotatedBoxProps, RotationTransition, type RotationTransitionProps, type RouteObject, type RouteParams, Router, RouterProvider, Row, type RowProps, SafeArea, type SafeAreaProps, type SaveFileOption, type ScaleEndDetails, type ScaleStartDetails, ScaleTransition, type ScaleTransitionProps, type ScaleUpdateDetails, Script, type ScriptingDeviceInfo, type ScrollEndNotification, type ScrollMetrics, type ScrollNotification, ScrollNotificationListener, type ScrollNotificationListenerProps, type ScrollOrientation, type ScrollPhysics, type ScrollStartNotification, type ScrollUpdateNotification, type ScrollViewKeyboardDismissBehavior, Scrollbar, type ScrollbarProps, SelectableText, type SelectableTextProps, type SetStateAction, Share, type ShareResultStatus, SingleChildScrollView, type SingleChildScrollViewProps, SizeTransition, type SizeTransitionProps, SizedBox, type SizedBoxProps, SlideTransition, type SlideTransitionProps, SliverFillRemaining, type SliverFillRemainingProps, SliverFixedHeightPersistentHeader, type SliverFixedHeightPersistentHeaderProps, SliverToBoxAdapter, type SliverToBoxAdapterProps, SocketIO, type SocketIOOptions, Spacer, type SpacerProps, Stack, type StackFit, type StackProps, type StateInitializer, StickyHeader, type StickyHeaderProps, Storage, StringSvg, type StringSvgProps, type StrokeCap, type StrutStyle, Svg, type SvgProps, type SweepGradient, Swiper, SwiperPagination, type SwiperPaginationProps, type SwiperProps, Switch, type SwitchProps, type SystemUIOverlayStyle, type TabAlignment, TabBar, type TabBarIndicatorSize, type TabBarProps, TabBarView, type TabBarViewProps, TabController, TabControllerConsumer, type TabControllerProps, TabControllerProvider, type TabControllerRef, type TabControllerRenderNode, type TableCellVerticalAlignment, type TakePhotoOptions, type TapDownDetails, type TapUpDetails, Text, type TextAlign, type TextAlignVertical, type TextBaseLine, type TextCapitalization, type TextDecoration, type TextDecorationStyle, type TextDirection, TextField, type TextFieldProps, type TextHeightBehavior, type TextInputAction, type TextInputType, type TextLeadingDistribution, type TextOverflow, type TextProps, TextSpan, type TextSpanProps, type TextStyle, type TextWidthBasis, type ThemeMode, type ThemeState, Ticker, TickerManager, TickerManagerConsumer, TickerManagerProvider, type TickerManagerProviderProps, type TickerManagerRef, type TileMode, TransformRotate, type TransformRotateProps, TransformScale, type TransformScaleProps, TransformTranslate, type TransformTranslateProps, type Tween, type TweenSequence, type TweenSequenceConstantItem, type TweenSequenceItem, type TweenType, type TypedParams, UnconstrainedBox, type UnconstrainedBoxProps, type UserScrollNotification, VStack, type VStackProps, type Velocity, type VerticalDirection, type VirtualNode, WebView, WebViewController, type WebViewProps, type WebViewSettings, Widget, type WidgetColor, type WidgetCommonProps, type WidgetContext, WidgetDate, WidgetDateInterval, type WidgetDateIntervalProps, type WidgetDateProps, WidgetDateRange, type WidgetDateRangeProps, type WidgetDateTextProps, type WidgetDisplaySize, WidgetDivider, type WidgetFamily, WidgetImage, type WidgetImageProps, type WidgetInitializer, WidgetLink, type WidgetLinkProps, type WidgetPadding, WidgetSpacer, WidgetSpan, type WidgetSpanProps, WidgetText, type WidgetTextProps, WidgetTimerInterval, type WidgetTimerIntervalProps, type WidgetUIColor, Worker, type WorkerErrorListener, type WorkerMessageListener, Wrap, type WrapAlignment, type WrapCrossAlignment, type WrapProps, type WrappedRouter, ZStack, type ZStackProps, createContext, downloadFile, fetch, launchUrl, loadBytes, loadFont, loadJson, loadString, navigator, runApp, useAnimationController, useByTheme, useCallback, useCancelToken, useContext, useCupertinoColors, useEffect, useEffectEvent, useLocale, useMediaQuery, useMemo, useNavigator, useReducer, useRef, useRouteParams, useRouter, useSelector, useState, useTabController, useThemeState, useTickerManager };
+export { AbsorbPointer, type AbsorbPointerProps, type AixsDirection, Align, type AlignProps, type Alignment, AnimatedAlign, type AnimatedAlignProps, AnimatedContainer, type AnimatedContainerProps, AnimatedOpacity, type AnimatedOpacityProps, AnimatedPadding, type AnimatedPaddingProps, AnimatedPositioned, type AnimatedPositionedProps, AnimatedRotation, type AnimatedRotationProps, AnimatedScale, type AnimatedScaleProps, AnimatedSize, type AnimatedSizeProps, AnimatedSlide, type AnimatedSlideProps, Animation, AnimationBase, AnimationController, type AnimationControllerInitialOptions, type AnimationInitalOptions, type AnimationStatus, type AnimationStatusListener, type AnimationValue, AppEventEmitter, AppEvents, type AppLifeCycleState, AspectRatio, type AspectRatioProps, AssetImage, type AssetImageProps, AutoSizeText, type AutoSizeTextProps, type Axis, BackdropFilter, type BackdropFilterProps, Baseline, type BaselineProps, BatteryState, type BlendMode, Blob, type BlurStyle, type BorderRadius, type BorderSide, BottomNavigationBarItem, type BottomNavigationBarItemProps, type BottomSheetAction, type BoxConstraints, type BoxDecoration, type BoxFit, type BoxShadow, type BoxShape, type Brightness, type CSSColorKeywords, CSSFilter, type CSSFilterMatrix, CSSFilterPresets, type CSSFilterPresetsEffect, type CSSFilterPresetsProps, type CSSFilterProps, CancelToken, type CancelTokenHook, Canvas, type CanvasBlendMode, type CanvasColorSpace, type CanvasFillRule, type CanvasFontKerning, CanvasGradient, type CanvasImageSmoothingQuality, type CanvasLineCap, type CanvasLineJoin, CanvasRenderingContext2D, type CanvasTextMetrics, type CanvasTextRendering, Center, type CenterProps, type ChartsBarStyle, type ChartsCommonDataGroup, type ChartsDataGroup, type ChartsDomainAxisStyle, type ChartsLineStyle, type ChartsMeasureAxisStyle, type ChartsPointStyle, type ChartsStackedDataGroup, ChartsWidget, type ChartsWidgetProps, CircularProgressIndicator, type CircularProgressIndicatorProps, type Clip, ClipOval, type ClipOvalProps, ClipRRect, type ClipRRectProps, ClipRect, type ClipRectProps, Clipboard, type Color, type ColorObjectHexAndOpacity, type ColorObjectRGBA, type ColorObjectRGBO, type ColorStringHSL, type ColorStringHSLA, type ColorStringHex, type ColorStringRGB, type ColorStringRGBA, Column, type ColumnProps, type ComponentCallback, type ComponentEffect, type ComponentEffectEvent, type ComponentMemo, type ComponentProps, CompositedTransformOverlay, type CompositedTransformOverlayProps, type ConsoleMessageLevel, ConstrainedBox, type ConstrainedBoxProps, type Consumer, type ConsumerProps, Container, type ContainerProps, type Context, type CrossAxisAlignment, CupertinoActionSheet, CupertinoActionSheetAction, type CupertinoActionSheetActionProps, type CupertinoActionSheetProps, CupertinoActivityIndicator, type CupertinoActivityIndicatorProps, CupertinoAlertDialog, type CupertinoAlertDialogProps, CupertinoButton, type CupertinoButtonProps, type CupertinoColors, CupertinoColorsWithBrightness, CupertinoContextMenu, CupertinoContextMenuAction, type CupertinoContextMenuActionProps, type CupertinoContextMenuProps, CupertinoDatePicker, type CupertinoDatePickerMode, type CupertinoDatePickerProps, CupertinoDialogAction, type CupertinoDialogActionProps, type CupertinoDialogRoute, CupertinoFormRow, type CupertinoFormRowProps, CupertinoFormSection, type CupertinoFormSectionProps, type CupertinoIcons, CupertinoListSection, type CupertinoListSectionProps, CupertinoListTile, CupertinoListTileChevron, type CupertinoListTileProps, type CupertinoModalPopupRoute, CupertinoNavigationBar, CupertinoNavigationBarBackButton, type CupertinoNavigationBarBackButtonProps, type CupertinoNavigationBarProps, type CupertinoPageRoute, CupertinoPageScaffold, type CupertinoPageScaffoldProps, CupertinoPicker, CupertinoPickerDefaultSelectionOverlay, type CupertinoPickerDefaultSelectionOverlayProps, type CupertinoPickerProps, CupertinoPopupSurface, type CupertinoPopupSurfaceProps, CupertinoScrollerBar, type CupertinoScrollerBarProps, CupertinoSearchTextField, type CupertinoSearchTextFieldProps, CupertinoSegmentedControl, type CupertinoSegmentedControlProps, CupertinoSlider, type CupertinoSliderProps, CupertinoSlidingSegmentedControl, type CupertinoSlidingSegmentedControlProps, CupertinoSliverNavigationBar, type CupertinoSliverNavigationBarProps, CupertinoSliverRefreshControl, type CupertinoSliverRefreshControlProps, CupertinoSwitch, type CupertinoSwitchProps, CupertinoTabBar, type CupertinoTabBarProps, CupertinoTextField, type CupertinoTextFieldProps, CupertinoTheme, type CupertinoThemeProps, CupertinoTimerPicker, type CupertinoTimerPickerMode, type CupertinoTimerPickerProps, type Curve, CustomPaint, type CustomPaintProps, type CustomPaintRef, CustomScrollView, type CustomScrollViewProps, type DatePickerDateOrder, DecoratedBoxTransition, type DecoratedBoxTransitionProps, DefaultTabController, type DefaultTabControllerProps, DefaultTextStyle, type DefaultTextStyleProps, Device, type DeviceOrientation, Dialog, type DialogRoute, type DismissDirection, Dismissable, type DismissableProps, type Dispatch, DottedBorder, type DottedBorderProps, DottedLine, type DottedLineProps, type DragDownDetails, type DragEndDetails, type DragUpdateDetails, type EdgeInsets, type EdgeInsetsDirectional, type EffectDestructor, type EffectSetup, type Encoding, Event, type EventListener, EventListenerManager, type EventPosition, Expanded, type ExpandedProps, FadeTransition, type FadeTransitionProps, FileImage, type FileImageProps, FileManager, FilePicker, type FileStat, type FilterQuality, FittedBox, type FittedBoxProps, type FontStyle, type FontWeight, FormData, type FunctionComponent, GestureDetector, type GestureDetectorProps, type GetDirectoryPathOptions, Gif, type GifProps, type GridDelegateWithFixedCrossAxisCount, type GridDelegateWithMaxCrossAxisExtent, GridView, type GridViewCommonProps, type GridViewFixedCrossAxisCountProps, type GridViewMaxCrossAxisExtentProps, type GridViewProps, HStack, type HStackProps, Headers, type HeadersInit, HeadlessWebView, Hero, type HeroProps, HighlighterView, type HighlighterViewProps, type HitTestBehavior, Icon, type IconProps, IgnorePointer, type IgnorePointerProps, Image, type ImageByteFormat, ImageData, type ImageFilter, type ImageFilterBlur, type ImageFilterCompose, type ImageFilterDilate, type ImageFilterErode, type ImageFilterMaxtrix, ImageGallery, type ImageRepeat, ImageSaver, type ImpactFeedBackStyle, type IndexRouteObject, IndexedStack, type IndexedStackProps, InkWell, type InkWellProps, type InternalWidgetRender, type IntervalCurve, IntrinsicHeight, type IntrinsicHeightProps, IntrinsicWidth, type IntrinsicWidthProps, type KeyProps, KeyboardVisibility, type KeyboardVisibilityProps, type LaunchMode, type LinearGradient, LinearProgressIndicator, type LinearProgressIndicatorProps, ListView, type ListViewProps, type LoadDataOptions, type LoadFontOptions, type LocaleState, type MainAxisAlignment, type MainAxisSize, Material, type MaterialPageRoute, type MaterialProps, Matrix3, MediaQuery, type MediaQueryData, type MediaQueryProps, type MediaQueryRemoveEdgeInsetsProps, MediaQueryRemovePadding, MediaQueryRemoveViewInsets, MediaQueryRemoveViewPadding, MemoryImage, type MemoryImageProps, Menu, MenuAction, type MenuActionProps, type MenuProps, type ModalBottomSheetRoute, type MutableRefObject, Navigator, type NavigatorProps, type NavigatorRef, NestedScrollView, type NestedScrollViewProps, NetworkImage, type NetworkImageProps, type NormalCurve, type NormalRouteObject, Notification, type Offset, Offstage, type OffstageProps, Opacity, type OpacityProps, type Orientation, type OtherwiseRouteObject, type OverScrollNotification, OverflowBox, type OverflowBoxProps, type OverlayVisibilityMode, Padding, type PaddingProps, type PageInfo, type PagePopEvent, type PagePopResultEvent, type PageRoute, PageView, type PageViewProps, type PaintRect, type PaintSize, Path2D, type PickFileOption, type PickFileOptions, type PlaceholderAlignment, PopScope, type PopScopeProps, Positioned, type PositionedProps, PositionedTransition, type PositionedTransitionProps, type Provider, type ProviderProps, type PushNamedRouteOptions, type PushRouteOptions, QRCode, QrImage, type QrImageProps, type RadialGradient, type Reducer, type ReducerAction, type ReducerState, type RefObject, type RefProps, RefreshIndicator, type RefreshIndicatorProps, type RelativeRect, type RenderNode, type RenderObject, type RenderObjectShowOnScreenOptions, ReorderableColumn, type ReorderableColumnProps, ReorderableListView, type ReorderableListViewProps, ReorderableTable, type ReorderableTableProps, ReorderableTableRow, type ReorderableTableRowProps, ReorderableWrap, type ReorderableWrapProps, RepaintBoundary, type RepaintBoundaryProps, type RepaintBoundaryRef, Request, type RequestInit, Response, type ResponseInit, RichSelectableText, type RichSelectableTextProps, RichText, type RichTextProps, RotatedBox, type RotatedBoxProps, RotationTransition, type RotationTransitionProps, type RouteObject, type RouteParams, Router, RouterProvider, Row, type RowProps, SafeArea, type SafeAreaProps, type SaveFileOption, type ScaleEndDetails, type ScaleStartDetails, ScaleTransition, type ScaleTransitionProps, type ScaleUpdateDetails, Script, type ScriptingDeviceInfo, type ScrollEndNotification, type ScrollMetrics, type ScrollNotification, ScrollNotificationListener, type ScrollNotificationListenerProps, type ScrollOrientation, type ScrollPhysics, type ScrollStartNotification, type ScrollUpdateNotification, type ScrollViewKeyboardDismissBehavior, Scrollbar, type ScrollbarProps, SelectableText, type SelectableTextProps, type SetStateAction, Share, type ShareResultStatus, SingleChildScrollView, type SingleChildScrollViewProps, SizeTransition, type SizeTransitionProps, SizedBox, type SizedBoxProps, SlideTransition, type SlideTransitionProps, SliverFillRemaining, type SliverFillRemainingProps, SliverFixedHeightPersistentHeader, type SliverFixedHeightPersistentHeaderProps, SliverToBoxAdapter, type SliverToBoxAdapterProps, SocketIO, type SocketIOOptions, Spacer, type SpacerProps, Stack, type StackFit, type StackProps, type StateInitializer, StickyHeader, type StickyHeaderProps, Storage, StringSvg, type StringSvgProps, type StrokeCap, type StrutStyle, Svg, type SvgProps, type SweepGradient, Swiper, SwiperPagination, type SwiperPaginationProps, type SwiperProps, Switch, type SwitchProps, type SystemUIOverlayStyle, type TabAlignment, TabBar, type TabBarIndicatorSize, type TabBarProps, TabBarView, type TabBarViewProps, TabController, TabControllerConsumer, type TabControllerProps, TabControllerProvider, type TabControllerRef, type TabControllerRenderNode, type TableCellVerticalAlignment, type TakePhotoOptions, type TapDownDetails, type TapUpDetails, Text, type TextAlign, type TextAlignVertical, type TextBaseLine, type TextCapitalization, type TextDecoration, type TextDecorationStyle, type TextDirection, TextField, type TextFieldProps, type TextHeightBehavior, type TextInputAction, type TextInputType, type TextLeadingDistribution, type TextOverflow, type TextProps, TextSpan, type TextSpanProps, type TextStyle, type TextWidthBasis, type ThemeMode, type ThemeState, Ticker, TickerManager, TickerManagerConsumer, TickerManagerProvider, type TickerManagerProviderProps, type TickerManagerRef, type TileMode, TransformRotate, type TransformRotateProps, TransformScale, type TransformScaleProps, TransformTranslate, type TransformTranslateProps, type Tween, type TweenSequence, type TweenSequenceConstantItem, type TweenSequenceItem, type TweenType, type TypedParams, UnconstrainedBox, type UnconstrainedBoxProps, type UserScrollNotification, VStack, type VStackProps, type Velocity, type VerticalDirection, type VirtualNode, WebView, WebViewController, type WebViewProps, type WebViewSettings, Widget, type WidgetColor, type WidgetCommonProps, type WidgetContext, WidgetDate, WidgetDateInterval, type WidgetDateIntervalProps, type WidgetDateProps, WidgetDateRange, type WidgetDateRangeProps, type WidgetDateTextProps, type WidgetDisplaySize, WidgetDivider, type WidgetFamily, WidgetImage, type WidgetImageProps, type WidgetInitializer, WidgetLink, type WidgetLinkProps, type WidgetPadding, WidgetSpacer, WidgetSpan, type WidgetSpanProps, WidgetText, type WidgetTextProps, WidgetTimerInterval, type WidgetTimerIntervalProps, type WidgetUIColor, Worker, type WorkerErrorListener, type WorkerMessageListener, Wrap, type WrapAlignment, type WrapCrossAlignment, type WrapProps, type WrappedRouter, ZStack, type ZStackProps, createContext, downloadFile, fetch, launchUrl, loadBytes, loadFont, loadJson, loadString, navigator, runApp, useAnimationController, useByTheme, useCallback, useCancelToken, useContext, useCupertinoColors, useEffect, useEffectEvent, useMediaQuery, useMemo, useNavigator, useReducer, useRef, useRouteParams, useRouter, useSelector, useState, useTabController, useThemeState, useTickerManager };

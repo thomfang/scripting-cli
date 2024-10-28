@@ -43,8 +43,8 @@ function createEntryFile(scriptName) {
         yield (0, promises_1.writeFile)(filePath, `import { Column, CupertinoNavigationBar, CupertinoPageScaffold, Text, Container, useCupertinoColors, navigator, GestureDetector, Script, Center, CupertinoButton, } from 'scripting'
 
 function App() {
-  const cupertinoColors = useCupertinoColors()
-  const backgroundColor = cupertinoColors.systemBackground
+  const colors = useCupertinoColors()
+  const backgroundColor = colors.systemBackground
 
   return (
     <CupertinoPageScaffold
@@ -59,7 +59,7 @@ function App() {
     >
       <Center>
         <Text
-          color={cupertinoColors.label}
+          color={colors.label}
         >Welcome to Scripting!</Text>
       </Center>
     </CupertinoPageScaffold>
@@ -88,7 +88,7 @@ function createPackageJson(scriptName) {
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "npx scripting-cli dev",
+    "start": "npx scripting-cli dev",
     "build": "npx scripting-cli build"
   }
 }`, 'utf-8');
@@ -99,13 +99,13 @@ function createReadme(scriptName) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(` > Creating ${scriptName}/README.md ...`);
         const filePath = node_path_1.default.join(getScriptDir(scriptName), 'README.md');
-        yield (0, promises_1.writeFile)(filePath, `# ${scriptName} - A Scripting script
+        yield (0, promises_1.writeFile)(filePath, `# ${scriptName} - A script for Scripting app.
 
 ## Start dev server
 
-\`npm run dev\`
+\`npm start\`
 
-## Build App
+## Build Script
 
 \`npm run build\`
 `, 'utf-8');
@@ -129,25 +129,26 @@ function createTSConfig(scriptName) {
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "module": "CommonJS",
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "jsx": "react",
     "jsxFactory": "createElement",
-    "baseUrl": "src",
-    "typeRoots": ["./types"],
-    // "paths": {
-    //   "@/*": [
-    //     "src/*"
-    //   ]
-    // }
+    "paths": {
+      "scripting": [
+        "./types/scripting.d.ts"
+      ]
+    }
   },
   "include": [
-    "src"
+    "src",
+    "types/assets.d.ts",
+    "types/global.d.ts",
   ],
 }`, 'utf-8');
         console.log(chalk_1.default.green(` ✔️ Created ${scriptName}/tsconfig.json`));
     });
 }
-function copyAsset(scriptName, fileName) {
+function copyDtsAsset(scriptName, fileName) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(` > Creating ${scriptName}/types/${fileName}.d.ts ...`);
         yield (0, promises_1.copyFile)(node_path_1.default.join(__dirname, `../public/${fileName}.d.ts`), node_path_1.default.join(getScriptDir(scriptName), `types/${fileName}.d.ts`));
@@ -156,9 +157,9 @@ function copyAsset(scriptName, fileName) {
 }
 function copyAssets(scriptName) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield copyAsset(scriptName, 'scripting');
-        yield copyAsset(scriptName, 'global');
-        yield copyAsset(scriptName, 'assets');
+        yield copyDtsAsset(scriptName, 'scripting');
+        yield copyDtsAsset(scriptName, 'global');
+        yield copyDtsAsset(scriptName, 'assets');
         // console.log(` > Creating ${scriptName}/src/svgs/logo.svg ...`)
         // await copyFile(
         //   path.join(__dirname, '../public/logo.svg'),
@@ -199,7 +200,7 @@ function createScript(scriptName) {
             yield copyAssets(scriptName);
             yield createVSCodeSettings(scriptName);
             installDeps(scriptName);
-            console.log(`All done! Run ${chalk_1.default.bold(chalk_1.default.green(`cd ${scriptName} && npm run dev`))} to start the dev server.`);
+            console.log(`All done! Run ${chalk_1.default.bold(chalk_1.default.green(`cd ${scriptName} && npm start`))} to start the dev server.`);
         }
         catch (e) {
             console.log(chalk_1.default.red(`✖️ Create script failed: ${e.message}`));
