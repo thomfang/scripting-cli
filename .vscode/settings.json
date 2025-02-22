@@ -1,6 +1,0 @@
-{
-  "typescript.format.semicolons": "remove",
-  // "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
-  "typescript.preferences.jsxAttributeCompletionStyle": "braces",
-  // "typescript.suggest.completeJSDocs": false
-}
