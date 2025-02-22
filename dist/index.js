@@ -1,4 +1,14 @@
+#!/usr/bin/env node
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -23,23 +33,6 @@ const io = new socket_io_1.Server(server);
 const bonjour = (0, bonjour_1.default)();
 const getPath = (filename) => path_1.default.join(process.cwd(), filename);
 (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-    // .command({
-    //   command: 'start',
-    //   describe: 'Start the scripting-cli server',
-    //   builder: (yargs) => {
-    //     return yargs.options({
-    //       port: {
-    //         describe: "The port the server listens on",
-    //         number: true,
-    //         default: 3000,
-    //       }
-    //     })
-    //       .usage("$0 start [--port=<port>]");
-    //   },
-    //   handler: (argv) => {
-    //     startServer(argv.port);
-    //   }
-    // })
     .command('start', 'Start the scripting-cli server', (yargs) => {
     return yargs.options({
         port: {
@@ -54,7 +47,6 @@ const getPath = (filename) => path_1.default.join(process.cwd(), filename);
         ["$0 start -p=8000", "Start server and listen on 8000"]
     ]);
 }, (argv) => {
-    console.log("argv", argv.port);
     startServer(argv.port);
 })
     .option('help', {
@@ -129,18 +121,18 @@ function startServer(port) {
             fs_1.default.mkdirSync(dirname, { recursive: true });
         }
     };
-    const writeDtsFiles = async (files) => {
-        await Promise.all(Object.entries(files).map(async ([filename, content]) => {
+    const writeDtsFiles = (files) => __awaiter(this, void 0, void 0, function* () {
+        yield Promise.all(Object.entries(files).map((_a) => __awaiter(this, [_a], void 0, function* ([filename, content]) {
             const filePath = getPath(`dts/${filename}`);
             ensureDirectoryExistence(filePath);
-            await fs_1.default
+            yield fs_1.default
                 .promises
                 .writeFile(filePath, content)
                 .catch((err) => {
                 console.log(chalk_1.default.red(`Error writing file: ${err}`));
             });
-        }));
-    };
+        })));
+    });
     const tryOpenFileInVSCode = (filePath) => {
         let cmd = `code "${filePath}"`;
         if (os_1.default.platform() === "win32") {
@@ -155,7 +147,7 @@ function startServer(port) {
         }
         child_process_1.default.execSync(cmd);
     };
-    const PORT = port ?? 3000;
+    const PORT = port !== null && port !== void 0 ? port : 3000;
     io.on('connection', (socket) => {
         console.log(chalk_1.default.blue(`Client [${socket.id}] connected`));
         let watcher = null;
@@ -205,7 +197,7 @@ function startServer(port) {
                 .on('error', error => console.log(chalk_1.default.bgRed(`Watcher error: ${error}`)))
                 .on('ready', () => console.log(`[${chalk_1.default.bold.blue(scriptName)}] Watching files for changes`));
         };
-        socket.on('syncScriptFromClient', async (data, ack) => {
+        socket.on('syncScriptFromClient', (data, ack) => __awaiter(this, void 0, void 0, function* () {
             try {
                 if (data.scriptName === scriptName) {
                     ack({
@@ -215,10 +207,10 @@ function startServer(port) {
                 }
                 if (scriptName != null) {
                     console.log(`Received new script, closing previous watcher`);
-                    watcher?.close();
+                    watcher === null || watcher === void 0 ? void 0 : watcher.close();
                     watcher = null;
                 }
-                await writeDtsFiles({
+                yield writeDtsFiles({
                     "global.d.ts": data["global.d.ts"],
                     "scripting.d.ts": data["scripting.d.ts"],
                 });
@@ -227,14 +219,14 @@ function startServer(port) {
                 const tsconfig = require(getPath('tsconfig.json'));
                 if (!tsconfig.include.includes(scriptName)) {
                     tsconfig.include.push(scriptName);
-                    await fs_1.default.promises.writeFile(getPath('tsconfig.json'), JSON.stringify(tsconfig, null, 2));
+                    yield fs_1.default.promises.writeFile(getPath('tsconfig.json'), JSON.stringify(tsconfig, null, 2));
                 }
                 ensureDirectoryExistence(scriptDir);
-                await Promise.all(Object.entries(data.scriptFiles).map(async ([filename, content]) => {
+                yield Promise.all(Object.entries(data.scriptFiles).map((_a) => __awaiter(this, [_a], void 0, function* ([filename, content]) {
                     const filePath = path_1.default.join(scriptDir, filename);
                     ensureDirectoryExistence(filePath);
-                    await fs_1.default.promises.writeFile(filePath, content);
-                }));
+                    yield fs_1.default.promises.writeFile(filePath, content);
+                })));
                 console.log(chalk_1.default.green('global.d.ts and scripting.d.ts and other script files saved.'));
                 createWatcher(data.scriptName);
                 ack({
@@ -249,8 +241,8 @@ function startServer(port) {
                     error: `Failed to init and sync script files.\n${e}`,
                 });
             }
-        });
-        socket.on("syncScriptFromServer", async (data, ack) => {
+        }));
+        socket.on("syncScriptFromServer", (data, ack) => __awaiter(this, void 0, void 0, function* () {
             try {
                 if (scriptName === data.scriptName) {
                     ack({
@@ -260,10 +252,10 @@ function startServer(port) {
                 }
                 if (scriptName != null) {
                     console.log(`Received new script [${chalk_1.default.bold.blue(data.scriptName)}], closing previous watcher`);
-                    watcher?.close();
+                    watcher === null || watcher === void 0 ? void 0 : watcher.close();
                     watcher = null;
                 }
-                await writeDtsFiles({
+                yield writeDtsFiles({
                     "global.d.ts": data["global.d.ts"],
                     "scripting.d.ts": data["scripting.d.ts"],
                 });
@@ -275,13 +267,13 @@ function startServer(port) {
                     return;
                 }
                 const scriptFiles = {};
-                const readDir = async (dir) => {
-                    const files = await fs_1.default.promises.readdir(dir, { withFileTypes: true });
-                    await Promise.all(files.map(async (file) => {
+                const readDir = (dir) => __awaiter(this, void 0, void 0, function* () {
+                    const files = yield fs_1.default.promises.readdir(dir, { withFileTypes: true });
+                    yield Promise.all(files.map((file) => __awaiter(this, void 0, void 0, function* () {
                         if (file.isFile()) {
                             const filePath = path_1.default.join(dir, file.name);
                             const relativePath = path_1.default.relative(scriptDir, filePath);
-                            const content = await fs_1.default.promises.readFile(filePath, 'utf-8').catch((err) => {
+                            const content = yield fs_1.default.promises.readFile(filePath, 'utf-8').catch((err) => {
                                 console.log(chalk_1.default.red(`Error reading file: ${err}`));
                             });
                             if (typeof content === "string") {
@@ -292,11 +284,11 @@ function startServer(port) {
                             }
                         }
                         else if (file.isDirectory()) {
-                            await readDir(path_1.default.join(dir, file.name));
+                            yield readDir(path_1.default.join(dir, file.name));
                         }
-                    }));
-                };
-                await readDir(scriptDir);
+                    })));
+                });
+                yield readDir(scriptDir);
                 scriptName = data.scriptName;
                 ack({
                     scriptFiles,
@@ -310,11 +302,11 @@ function startServer(port) {
                     error: `Failed to init and pull script files.\n${e}`,
                 });
             }
-        });
+        }));
         socket.on('stopDebugScript', (data, ack) => {
             if (data === scriptName) {
                 console.log(`[${chalk_1.default.bold.blue(scriptName)}] Stop debug script`);
-                watcher?.close();
+                watcher === null || watcher === void 0 ? void 0 : watcher.close();
                 watcher = null;
                 scriptName = "";
                 ack(true);
@@ -323,7 +315,7 @@ function startServer(port) {
                 ack(false);
             }
         });
-        socket.on("getFileContent", async (data, ack) => {
+        socket.on("getFileContent", (data, ack) => __awaiter(this, void 0, void 0, function* () {
             if (scriptName !== data.scriptName) {
                 ack({
                     error: `Script ${data.scriptName} is not initialized`,
@@ -332,7 +324,7 @@ function startServer(port) {
             }
             const filePath = path_1.default.join(getPath(data.scriptName), data.relativePath);
             try {
-                const content = await fs_1.default.promises.readFile(filePath, 'utf-8');
+                const content = yield fs_1.default.promises.readFile(filePath, 'utf-8');
                 ack({
                     content,
                 });
@@ -342,14 +334,14 @@ function startServer(port) {
                     error: `Failed to get file content.\n${e}`,
                 });
             }
-        });
+        }));
         socket.on("log", (data) => {
             if (data.scriptName !== scriptName) {
                 return;
             }
             console.log(`[${chalk_1.default.bold.blue(scriptName)}][${data.isError ? chalk_1.default.red("ERROR") : "LOG"}][${new Date().toLocaleTimeString()}] ${data.content}`);
         });
-        socket.on("openFile", async (data) => {
+        socket.on("openFile", (data) => __awaiter(this, void 0, void 0, function* () {
             if (data.scriptName !== scriptName) {
                 return;
             }
@@ -357,10 +349,10 @@ function startServer(port) {
             if (fs_1.default.existsSync(filePath)) {
                 tryOpenFileInVSCode(filePath);
             }
-        });
+        }));
         socket.on('disconnect', () => {
             console.log(chalk_1.default.gray(`Client [${socket.id}] disconnected`));
-            watcher?.close();
+            watcher === null || watcher === void 0 ? void 0 : watcher.close();
             watcher = null;
         });
         const serverScriptNames = fs_1.default.readdirSync(process.cwd())
@@ -386,6 +378,5 @@ function startServer(port) {
     });
 }
 if (require.main === module) {
-    console.log("start main");
     startServer();
 }
