@@ -71,6 +71,7 @@ function startServer(port?: number) {
     "skipLibCheck": true,
     "jsx": "react",
     "jsxFactory": "createElement",
+    "jsxFragmentFactory": "Fragment",
     "paths": {
       "scripting": [
         "./dts/scripting.d.ts"
@@ -440,7 +441,7 @@ function startServer(port?: number) {
     const ipAddress = ip.address()
     const address = `http://${ipAddress}:${PORT}`;
 
-    console.log(`Server listening on ${chalk.blue(address)}\nYou can select this server in the Scripting app to connect.`);
+    console.log(`Server listening on ${chalk.bold.blue(address)}\nYou can select this server in the Scripting app to connect.`);
 
     bonjour.publish({ name: 'Scripting-service', type: 'http', port: PORT });
 
@@ -454,6 +455,6 @@ function startServer(port?: number) {
   });
 }
 
-if (require.main === module) {
-  startServer();
-}
+// if (require.main === module) {
+//   startServer();
+// }

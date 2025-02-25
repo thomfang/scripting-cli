@@ -367,7 +367,7 @@ function startServer(port) {
         createVSCodeSettings(); // Create vscode settings.json when the server starts
         const ipAddress = ip_1.default.address();
         const address = `http://${ipAddress}:${PORT}`;
-        console.log(`Server listening on ${chalk_1.default.blue(address)}\nYou can select this server in the Scripting app to connect.`);
+        console.log(`Server listening on ${chalk_1.default.bold.blue(address)}\nYou can select this server in the Scripting app to connect.`);
         bonjour.publish({ name: 'Scripting-service', type: 'http', port: PORT });
         process.on('SIGINT', () => {
             bonjour.unpublishAll(() => {
@@ -377,6 +377,6 @@ function startServer(port) {
         });
     });
 }
-if (require.main === module) {
-    startServer();
-}
+// if (require.main === module) {
+//   startServer();
+// }
