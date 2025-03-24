@@ -1,6 +1,6 @@
 {
   "name": "scripting-cli",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "This plugin integrates the desktop editor synchronization feature of the Scripting app.",
   "main": "dist/index.js",
   "bin": {
@@ -32,6 +32,7 @@
     "chokidar": "^4.0.3",
     "express": "^4.21.2",
     "ip": "^2.0.1",
+    "qrcode-terminal": "^0.12.0",
     "socket.io": "^4.8.1",
     "typescript": "^5.7.3",
     "yargs": "^17.7.2"
@@ -41,6 +42,7 @@
     "@types/express": "^5.0.0",
     "@types/ip": "^1.1.3",
     "@types/node": "^22.13.4",
+    "@types/qrcode-terminal": "^0.12.2",
     "@types/socket.io": "^3.0.2",
     "@types/yargs": "^17.0.33",
     "ts-node": "^10.9.2"

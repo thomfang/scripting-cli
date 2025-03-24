@@ -27,6 +27,7 @@ const crypto_1 = __importDefault(require("crypto"));
 const chalk_1 = __importDefault(require("chalk"));
 const child_process_1 = __importDefault(require("child_process"));
 const os_1 = __importDefault(require("os"));
+const qrcode_terminal_1 = __importDefault(require("qrcode-terminal"));
 const app = (0, express_1.default)();
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server);
@@ -80,6 +81,7 @@ function startServer(port) {
     "skipLibCheck": true,
     "jsx": "react",
     "jsxFactory": "createElement",
+    "jsxFragmentFactory": "Fragment",
     "paths": {
       "scripting": [
         "./dts/scripting.d.ts"
@@ -367,7 +369,9 @@ function startServer(port) {
         createVSCodeSettings(); // Create vscode settings.json when the server starts
         const ipAddress = ip_1.default.address();
         const address = `http://${ipAddress}:${PORT}`;
-        console.log(`Server listening on ${chalk_1.default.bold.blue(address)}\nYou can select this server in the Scripting app to connect.`);
+        console.log(`Server listening on ${chalk_1.default.bold.blue(address)}\nYou can select this server in the Scripting app to connect.\n`);
+        console.log(`Alternatively, you can ${chalk_1.default.green.bold("use the Scripting app to scan")} the QR code and connect: `);
+        qrcode_terminal_1.default.generate(address, { small: true });
         bonjour.publish({ name: 'Scripting-service', type: 'http', port: PORT });
         process.on('SIGINT', () => {
             bonjour.unpublishAll(() => {

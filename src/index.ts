@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import chalk from 'chalk';
 import childProcess from 'child_process';
 import os from 'os';
+import qrcode from 'qrcode-terminal';
 
 const app = express();
 const server = http.createServer(app);
@@ -441,7 +442,10 @@ function startServer(port?: number) {
     const ipAddress = ip.address()
     const address = `http://${ipAddress}:${PORT}`;
 
-    console.log(`Server listening on ${chalk.bold.blue(address)}\nYou can select this server in the Scripting app to connect.`);
+    console.log(`Server listening on ${chalk.bold.blue(address)}\nYou can select this server in the Scripting app to connect.\n`);
+
+    console.log(`Alternatively, you can ${chalk.green.bold("use the Scripting app to scan")} the QR code and connect: `);
+    qrcode.generate(address, { small: true });
 
     bonjour.publish({ name: 'Scripting-service', type: 'http', port: PORT });
 
