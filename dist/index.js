@@ -234,8 +234,13 @@ function startServer(port) {
                 ack({
                     success: true,
                 });
-                const entryFilePath = path_1.default.join(scriptDir, "index.tsx");
-                tryOpenFileInVSCode(entryFilePath);
+                // Open the entry file in VSCode after a delay
+                // to ensure the response is sent. Because the open file command
+                // may suspend the response and cause the client to not receive the ack.
+                setTimeout(() => {
+                    const entryFilePath = path_1.default.join(scriptDir, "index.tsx");
+                    tryOpenFileInVSCode(entryFilePath);
+                }, 1000);
             }
             catch (e) {
                 console.log(chalk_1.default.red(`Error: ${e}`));
@@ -296,8 +301,13 @@ function startServer(port) {
                     scriptFiles,
                 });
                 createWatcher(data.scriptName);
-                const entryFilePath = path_1.default.join(scriptDir, "index.tsx");
-                tryOpenFileInVSCode(entryFilePath);
+                // Open the entry file in VSCode after a delay
+                // to ensure the response is sent. Because the open file command
+                // may suspend the response and cause the client to not receive the ack.
+                setTimeout(() => {
+                    const entryFilePath = path_1.default.join(scriptDir, "index.tsx");
+                    tryOpenFileInVSCode(entryFilePath);
+                }, 1000);
             }
             catch (e) {
                 ack({
