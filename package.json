@@ -1,6 +1,6 @@
 {
   "name": "scripting-cli",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "This plugin integrates the desktop editor synchronization feature of the Scripting app.",
   "main": "dist/index.js",
   "bin": {

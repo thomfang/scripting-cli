@@ -166,7 +166,7 @@ function startServer(port?: number) {
 
       watcher
         .on('change', (filePath) => {
-          if (filePath.match(/\.(js(x)?|ts(x)?)$/)) {
+          if (filePath.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
             // send file content md5 hash to client
             // const content = fs.readFileSync(filePath, 'utf-8');
             fs.readFile(filePath, 'utf-8', (err, content) => {
