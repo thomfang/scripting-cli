@@ -38,16 +38,19 @@ export function startServer(port?: number) {
     console.log(`Alternatively, you can ${chalk.green.bold("use the Scripting app to scan")} the QR code and connect: `);
     qrcode.generate(address, { small: true });
 
-    bonjour.publish({
+    const service = bonjour.publish({
       name: 'Scripting-service',
       type: 'http',
       port: PORT
     });
 
     process.on('SIGINT', () => {
-      bonjour.unpublishAll(() => {
-        console.log('Server stopped');
-        process.exit();
+      service.stop(() => {
+        bonjour.unpublishAll(() => {
+          bonjour.destroy();
+          console.log('Bonjour services have been shut down properly.');
+          process.exit(0);
+        });
       });
     });
 
