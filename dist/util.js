@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -110,21 +101,19 @@ function ensureDirectoryExistence(filePath) {
         fs_1.default.mkdirSync(dirname, { recursive: true });
     }
 }
-function writeDtsFiles(files) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield Promise.all(Object.entries(files).map((_a) => __awaiter(this, [_a], void 0, function* ([filename, content]) {
-            const filePath = getPath(`dts/${filename}`);
-            ensureDirectoryExistence(filePath);
-            yield fs_1.default
-                .promises
-                .writeFile(filePath, content)
-                .catch((err) => {
-                console.log(chalk_1.default.red(`Error writing file: ${err}`));
-            });
-        })));
-    });
+async function writeDtsFiles(files) {
+    await Promise.all(Object.entries(files).map(async ([filename, content]) => {
+        const filePath = getPath(`dts/${filename}`);
+        ensureDirectoryExistence(filePath);
+        await fs_1.default
+            .promises
+            .writeFile(filePath, content)
+            .catch((err) => {
+            console.log(chalk_1.default.red(`Error writing file: ${err}`));
+        });
+    }));
 }
 function getRelativePath(from, to) {
     const relativePath = path_1.default.relative(from, to);
-    return relativePath.replace("\\", "/");
+    return relativePath.replaceAll("\\", "/");
 }

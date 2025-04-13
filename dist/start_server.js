@@ -19,7 +19,7 @@ const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server);
 const bonjour = (0, bonjour_1.default)();
 function startServer(port) {
-    const PORT = port !== null && port !== void 0 ? port : 3000;
+    const PORT = port ?? 3000;
     (0, http_router_1.initHttpRouter)(app);
     io.on('connection', (socket) => {
         controller_1.Controller.create(socket);
