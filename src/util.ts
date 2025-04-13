@@ -114,5 +114,5 @@ export async function writeDtsFiles(files: Record<string, string>) {
 
 export function getRelativePath(from: string, to: string) {
   const relativePath = path.relative(from, to);
-  return relativePath.replace("\\", "/");
+  return relativePath.replaceAll("\\", "/");
 }
