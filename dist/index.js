@@ -37,7 +37,6 @@ const start_server_1 = require("./start_server");
         ["$0 start --no-auto-open -p=8000", "Start server without opening the index.tsx/widget.tsx file and listen on 8000"],
     ]);
 }, (argv) => {
-    console.log(argv);
     (0, start_server_1.startServer)({
         port: argv.port,
         noAutoOpen: argv['no-auto-open'],

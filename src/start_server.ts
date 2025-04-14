@@ -20,7 +20,7 @@ export function startServer({ port, noAutoOpen }: {
   noAutoOpen: boolean | undefined
 }) {
 
-  console.log("port", port, "noAutoOpen", noAutoOpen);
+  // console.log("port", port, "noAutoOpen", noAutoOpen);
 
   const PORT = port ?? 3000;
 

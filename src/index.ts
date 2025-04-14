@@ -34,7 +34,6 @@ yargs(hideBin(process.argv))
         ["$0 start --no-auto-open -p=8000", "Start server without opening the index.tsx/widget.tsx file and listen on 8000"],
       ]);
   }, (argv) => {
-    console.log(argv)
     startServer({
       port: argv.port,
       noAutoOpen: argv['no-auto-open'] as any,
