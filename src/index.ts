@@ -5,6 +5,9 @@ import { hideBin } from 'yargs/helpers';
 import { startServer } from './start_server';
 
 yargs(hideBin(process.argv))
+  .parserConfiguration({
+    "boolean-negation": false
+  })
   .command('start', 'Start the scripting-cli server', (yargs) => {
     return yargs
       .options({
@@ -22,7 +25,6 @@ yargs(hideBin(process.argv))
       .options({
         "no-auto-open": {
           type: "boolean",
-          default: true,
           describe: "Do not open the index.tsx/widget.tsx file automatically",
         },
       })
@@ -32,15 +34,18 @@ yargs(hideBin(process.argv))
         ["$0 start --no-auto-open -p=8000", "Start server without opening the index.tsx/widget.tsx file and listen on 8000"],
       ]);
   }, (argv) => {
+    console.log(argv)
     startServer({
       port: argv.port,
-      noAutoOpen: argv['no-auto-open'],
+      noAutoOpen: argv['no-auto-open'] as any,
     });
   })
+  .showHelpOnFail(true)
   .option('help', {
     alias: 'h',
     describe: 'Show help',
   })
+  .demandCommand()
   .parse();
 
 

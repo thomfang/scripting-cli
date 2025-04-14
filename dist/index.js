@@ -8,6 +8,9 @@ const yargs_1 = __importDefault(require("yargs/yargs"));
 const helpers_1 = require("yargs/helpers");
 const start_server_1 = require("./start_server");
 (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
+    .parserConfiguration({
+    "boolean-negation": false
+})
     .command('start', 'Start the scripting-cli server', (yargs) => {
     return yargs
         .options({
@@ -25,7 +28,6 @@ const start_server_1 = require("./start_server");
         .options({
         "no-auto-open": {
             type: "boolean",
-            default: true,
             describe: "Do not open the index.tsx/widget.tsx file automatically",
         },
     })
@@ -35,15 +37,18 @@ const start_server_1 = require("./start_server");
         ["$0 start --no-auto-open -p=8000", "Start server without opening the index.tsx/widget.tsx file and listen on 8000"],
     ]);
 }, (argv) => {
+    console.log(argv);
     (0, start_server_1.startServer)({
         port: argv.port,
         noAutoOpen: argv['no-auto-open'],
     });
 })
+    .showHelpOnFail(true)
     .option('help', {
     alias: 'h',
     describe: 'Show help',
 })
+    .demandCommand()
     .parse();
 // if (require.main === module) {
 //   startServer();
