@@ -76,6 +76,10 @@ npx scripting-cli start --port=4000
 ## 其他信息
 
 - 服务的默认端口是 `3000`，如果该端口已被占用，您可以使用 `--port` 参数指定其他端口。
+- 使用 --no-auto-open 选项可以在启动开发服务器时，避免自动打开 index.tsx 或 widget.tsx 文件。示例：
+   ```bash
+   npx scripting-cli start --no-auto-open
+   ```
 - 该工具适用于喜欢使用桌面编辑器（如 VSCode）并希望与 Scripting 应用进行无缝集成的用户，以便进行代码同步和调试。
 
 ## 故障排除

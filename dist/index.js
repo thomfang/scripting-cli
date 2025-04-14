@@ -9,7 +9,8 @@ const helpers_1 = require("yargs/helpers");
 const start_server_1 = require("./start_server");
 (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
     .command('start', 'Start the scripting-cli server', (yargs) => {
-    return yargs.options({
+    return yargs
+        .options({
         port: {
             alias: ["p"],
             describe: "The port the server listens on",
@@ -20,9 +21,24 @@ const start_server_1 = require("./start_server");
         .usage("$0 start [--port=<port>]")
         .example([
         ["$0 start -p=8000", "Start server and listen on 8000"]
+    ])
+        .options({
+        "no-auto-open": {
+            type: "boolean",
+            default: true,
+            describe: "Do not open the index.tsx/widget.tsx file automatically",
+        },
+    })
+        .usage("$0 start [--no-auto-open]")
+        .example([
+        ["$0 start --no-auto-open", "Start server without opening the index.tsx/widget.tsx file"],
+        ["$0 start --no-auto-open -p=8000", "Start server without opening the index.tsx/widget.tsx file and listen on 8000"],
     ]);
 }, (argv) => {
-    (0, start_server_1.startServer)(argv.port);
+    (0, start_server_1.startServer)({
+        port: argv.port,
+        noAutoOpen: argv['no-auto-open'],
+    });
 })
     .option('help', {
     alias: 'h',

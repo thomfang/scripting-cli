@@ -15,14 +15,19 @@ const server = http.createServer(app);
 const io = new SocketIOServer(server);
 const bonjour = Bonjour();
 
-export function startServer(port?: number) {
+export function startServer({ port, noAutoOpen }: {
+  port: number | undefined
+  noAutoOpen: boolean | undefined
+}) {
+
+  console.log("port", port, "noAutoOpen", noAutoOpen);
 
   const PORT = port ?? 3000;
 
   initHttpRouter(app);
 
   io.on('connection', (socket) => {
-    Controller.create(socket);
+    Controller.create(socket, noAutoOpen);
     console.log(chalk.blue(`Client [${socket.id}] connected`));
   });
 

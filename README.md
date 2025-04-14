@@ -76,6 +76,10 @@ As you write and save scripts in your desktop editor (e.g., VSCode), the updated
 ## Additional Information
 
 - The default port for the service is `3000`. If that port is already in use, specify a different one using the `--port` option.
+- Use the `--no-auto-open` option to start the development server without automatically opening the `index.tsx` or `widget.tsx` file in your default code editor. Example:
+   ```bash
+   npx scripting-cli start --no-auto-open
+   ```
 - The tool is intended for users who prefer using desktop editors like VSCode and want seamless integration with the Scripting app for code synchronization and debugging.
 
 ## Troubleshooting
