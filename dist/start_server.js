@@ -37,16 +37,31 @@ function startServer({ port, noAutoOpen }) {
         const service = bonjour.publish({
             name: 'Scripting-service',
             type: 'http',
-            port: PORT
+            port: PORT,
+            host: 'scripting-service.local',
         });
-        process.on('SIGINT', () => {
+        // Register bonjour service error handler
+        service.on('error', err => {
+            console.error('Bonjour service error:', err);
+        });
+        ['SIGINT', 'SIGTERM'].forEach(sig => process.once(sig, gracefulShutdown));
+        // Handle uncaught exceptions
+        process.on('uncaughtException', err => {
+            console.error('Uncaught exception:', err);
+            gracefulShutdown();
+        });
+        function gracefulShutdown() {
+            console.log('Shutting down Bonjour…');
             service.stop(() => {
                 bonjour.unpublishAll(() => {
-                    bonjour.destroy();
-                    console.log('Bonjour services have been shut down properly.');
-                    process.exit(0);
+                    // wait for 500ms，let goodbye message be sent completely
+                    setTimeout(() => {
+                        bonjour.destroy();
+                        console.log('Bonjour services have been shut down properly.');
+                        process.exit(0);
+                    }, 500);
                 });
             });
-        });
+        }
     });
 }
