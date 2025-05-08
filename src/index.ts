@@ -32,11 +32,26 @@ yargs(hideBin(process.argv))
       .example([
         ["$0 start --no-auto-open", "Start server without opening the index.tsx/widget.tsx file"],
         ["$0 start --no-auto-open -p=8000", "Start server without opening the index.tsx/widget.tsx file and listen on 8000"],
-      ]);
+      ])
+      .options({
+        "bonjour": {
+          type: "boolean",
+          describe: "Enable bonjour service",
+        },
+      })
+      .usage("$0 start [--bonjour]")
+      .example([
+        ["$0 start --bonjour", "Start server with bonjour service"],
+        ["$0 start --bonjour -p=8000", "Start server with bonjour service and listen on 8000"],
+        ["$0 start --bonjour --no-auto-open", "Start server with bonjour service without opening the index.tsx/widget.tsx file"],
+        ["$0 start --bonjour --no-auto-open -p=8000", "Start server with bonjour service without opening the index.tsx/widget.tsx file and listen on 8000"],
+      ])
+      ;
   }, (argv) => {
     startServer({
       port: argv.port,
-      noAutoOpen: argv['no-auto-open'] as any,
+      noAutoOpen: argv['no-auto-open'],
+      startBonjourService: argv.bonjour,
     });
   })
   .showHelpOnFail(true)

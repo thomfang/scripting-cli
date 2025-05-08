@@ -16,6 +16,13 @@ export function getPath(filename: string) {
   return path.join(process.cwd(), filename);
 }
 
+export function getScriptPath(filename?: string) {
+  if (filename != null) {
+    return path.join(process.cwd(), 'scripts', filename);
+  }
+  return path.join(process.cwd(), 'scripts');
+}
+
 export function tryOpenFileInVSCode(filePath: string) {
   let cmd = `code "${filePath}"`;
   if (os.platform() === "win32") {
@@ -57,7 +64,8 @@ export function createTsConfig() {
     }
   },
   "include": [
-    "./dts/global.d.ts"
+    "./dts/global.d.ts",
+    "scripts"
   ]
 }`;
 
@@ -68,7 +76,17 @@ export function createTsConfig() {
     fs.writeFileSync(filePath, tsconfigContent);
     console.log(chalk.green('tsconfig.json created.'));
   } else {
-    console.log(chalk.gray('tsconfig.json already exists.'));
+    const tsconfig = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    if (tsconfig.include && !tsconfig.include.includes('scripts')) {
+      tsconfig.include = [
+        "./dts/global.d.ts",
+        "scripts"
+      ];
+      fs.writeFileSync(filePath, JSON.stringify(tsconfig, null, 2));
+      console.log(chalk.yellow('tsconfig.json updated to include scripts directory.'));
+    } else {
+      console.log(chalk.gray('tsconfig.json already exists.'));
+    }
   }
 }
 
@@ -87,6 +105,16 @@ export function createVSCodeSettings() {
     console.log(chalk.gray('.vscode/settings.json already exists.'));
   }
 
+}
+
+export function ensureScriptsDirectory() {
+  const scriptsDir = getScriptPath();
+  if (!fs.existsSync(scriptsDir)) {
+    fs.mkdirSync(scriptsDir, { recursive: true });
+    console.log(chalk.green('Scripts directory created.'));
+  } else {
+    console.log(chalk.gray('Scripts directory already exists.'));
+  }
 }
 
 export function ensureDirectoryExistence(filePath: string) {
@@ -115,4 +143,40 @@ export async function writeDtsFiles(files: Record<string, string>) {
 export function getRelativePath(from: string, to: string) {
   const relativePath = path.relative(from, to);
   return relativePath.replaceAll("\\", "/");
+}
+
+export async function migrateOldFiles() {
+  try {
+    const list = await fs.promises.readdir(process.cwd());
+
+    for (const file of list) {
+
+      if (file === 'dts' || file === '.vscode' || file == "scripts" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules') {
+        continue;
+      }
+
+      const filePath = path.join(process.cwd(), file);
+
+      const stat = await fs.promises.stat(filePath);
+
+      if (!stat.isDirectory()) {
+        continue;
+      }
+
+      const newFilePath = path.join(process.cwd(), 'scripts', file);
+
+      if (fs.existsSync(newFilePath)) {
+        console.log(chalk.yellow(`File ${newFilePath} already exists, skipping...`));
+        continue;
+      }
+
+      console.log(chalk.blue(`Moving ${filePath} to ${newFilePath}`));
+      await fs.promises.rename(filePath, newFilePath);
+
+    }
+
+  } catch (err) {
+    console.log(`Failed to migrate old files: ${chalk.red(`${err}`)}`);
+  }
+
 }

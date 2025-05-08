@@ -41,15 +41,15 @@ class Controller {
             Controller.instances.delete(socket.id);
             socket.removeAllListeners();
         });
-        fs_1.default.promises.readdir(process.cwd()).then((files) => {
-            const serverScriptNames = files.filter((filename) => fs_1.default.statSync(filename).isDirectory()
+        fs_1.default.promises.readdir((0, util_1.getScriptPath)()).then((files) => {
+            const serverScriptNames = files.filter((filename) => fs_1.default.statSync((0, util_1.getScriptPath)(filename)).isDirectory()
                 && filename !== '.vscode'
                 && filename !== 'dts');
             socket.emit("serverScripts", serverScriptNames);
         });
     }
     createWatcher(scriptName) {
-        const scriptDir = (0, util_1.getPath)(scriptName);
+        const scriptDir = (0, util_1.getScriptPath)(scriptName);
         this.watcher = chokidar_1.default.watch(scriptDir, {
             ignored: /(^|[\/\\])\../,
             persistent: true,
@@ -111,13 +111,7 @@ class Controller {
                 "scripting.d.ts": data["scripting.d.ts"],
             });
             this.scriptName = data.scriptName;
-            const scriptName = data.scriptName;
-            const scriptDir = (0, util_1.getPath)(data.scriptName);
-            const tsconfig = require((0, util_1.getPath)('tsconfig.json'));
-            if (!tsconfig.include.includes(scriptName)) {
-                tsconfig.include.push(scriptName);
-                await fs_1.default.promises.writeFile((0, util_1.getPath)('tsconfig.json'), JSON.stringify(tsconfig, null, 2));
-            }
+            const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
             (0, util_1.ensureDirectoryExistence)(scriptDir);
             await Promise.all(Object.entries(data.scriptFiles).map(async ([filename, content]) => {
                 const filePath = path_1.default.join(scriptDir, filename);
@@ -163,7 +157,7 @@ class Controller {
                 "global.d.ts": data["global.d.ts"],
                 "scripting.d.ts": data["scripting.d.ts"],
             });
-            const scriptDir = (0, util_1.getPath)(data.scriptName);
+            const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
             if (!fs_1.default.existsSync(scriptDir)) {
                 ack({
                     error: `Script directory ${scriptDir} does not exist`,
@@ -224,7 +218,7 @@ class Controller {
         if (data.scriptName !== this.scriptName) {
             return;
         }
-        const filePath = path_1.default.join((0, util_1.getPath)(this.scriptName), data.relativePath);
+        const filePath = path_1.default.join((0, util_1.getScriptPath)(this.scriptName), data.relativePath);
         if (!this.noAutoOpen && fs_1.default.existsSync(filePath)) {
             (0, util_1.tryOpenFileInVSCode)(filePath);
         }
@@ -248,7 +242,7 @@ class Controller {
             });
             return;
         }
-        const filePath = path_1.default.join((0, util_1.getPath)(data.scriptName), data.relativePath);
+        const filePath = path_1.default.join((0, util_1.getScriptPath)(data.scriptName), data.relativePath);
         try {
             const content = await fs_1.default.promises.readFile(filePath, 'utf-8');
             ack({

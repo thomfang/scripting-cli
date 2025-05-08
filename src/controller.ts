@@ -1,7 +1,7 @@
 
 import chokidar, { FSWatcher } from 'chokidar';
 import { Socket } from 'socket.io';
-import { ensureDirectoryExistence, getPath, getRelativePath, md5, tryOpenFileInVSCode, writeDtsFiles } from './util';
+import { ensureDirectoryExistence, getPath, getRelativePath, getScriptPath, md5, tryOpenFileInVSCode, writeDtsFiles } from './util';
 import fs from 'fs';
 import chalk from 'chalk';
 import path from 'path';
@@ -52,9 +52,9 @@ export class Controller {
       socket.removeAllListeners();
     });
 
-    fs.promises.readdir(process.cwd()).then((files) => {
+    fs.promises.readdir(getScriptPath()).then((files) => {
       const serverScriptNames = files.filter((filename) =>
-        fs.statSync(filename).isDirectory()
+        fs.statSync(getScriptPath(filename)).isDirectory()
         && filename !== '.vscode'
         && filename !== 'dts'
       )
@@ -63,7 +63,7 @@ export class Controller {
   }
 
   createWatcher(scriptName: string) {
-    const scriptDir = getPath(scriptName)
+    const scriptDir = getScriptPath(scriptName)
     this.watcher = chokidar.watch(scriptDir, {
       ignored: /(^|[\/\\])\../,
       persistent: true,
@@ -142,16 +142,7 @@ export class Controller {
 
       this.scriptName = data.scriptName;
 
-      const scriptName = data.scriptName;
-
-      const scriptDir = getPath(data.scriptName);
-
-      const tsconfig = require(getPath('tsconfig.json'));
-
-      if (!tsconfig.include.includes(scriptName)) {
-        tsconfig.include.push(scriptName);
-        await fs.promises.writeFile(getPath('tsconfig.json'), JSON.stringify(tsconfig, null, 2))
-      }
+      const scriptDir = getScriptPath(data.scriptName);
 
       ensureDirectoryExistence(scriptDir);
 
@@ -220,7 +211,7 @@ export class Controller {
         "scripting.d.ts": data["scripting.d.ts"],
       });
 
-      const scriptDir = getPath(data.scriptName);
+      const scriptDir = getScriptPath(data.scriptName);
 
       if (!fs.existsSync(scriptDir)) {
         ack({
@@ -303,7 +294,7 @@ export class Controller {
       return;
     }
 
-    const filePath = path.join(getPath(this.scriptName), data.relativePath)
+    const filePath = path.join(getScriptPath(this.scriptName), data.relativePath)
 
     if (!this.noAutoOpen && fs.existsSync(filePath)) {
       tryOpenFileInVSCode(filePath)
@@ -337,7 +328,7 @@ export class Controller {
       return;
     }
 
-    const filePath = path.join(getPath(data.scriptName), data.relativePath);
+    const filePath = path.join(getScriptPath(data.scriptName), data.relativePath);
     try {
       const content = await fs.promises.readFile(filePath, 'utf-8');
       ack({
