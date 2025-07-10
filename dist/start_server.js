@@ -30,7 +30,7 @@ function startServer({ port, noAutoOpen, startBonjourService }) {
         (0, util_1.createTsConfig)(); // Create tsconfig.json when the server starts
         (0, util_1.createVSCodeSettings)(); // Create vscode settings.json when the server starts
         (0, util_1.ensureScriptsDirectory)(); // Ensure the scripts directory exists
-        await (0, util_1.migrateOldFiles)(); // Migrate old files to the scripts directory
+        // await migrateOldFiles(); // Migrate old files to the scripts directory
         const ipAddress = ip_1.default.address();
         const address = `http://${ipAddress}:${PORT}`;
         if (startBonjourService) {
@@ -44,7 +44,7 @@ function startServer({ port, noAutoOpen, startBonjourService }) {
         qrcode_terminal_1.default.generate(address, { small: true });
         if (startBonjourService) {
             function gracefulShutdown() {
-                console.log('Shutting down Bonjour…');
+                console.log('Shutting down Bonjour...');
                 service.stop(() => {
                     bonjour.unpublishAll(() => {
                         // wait for 500ms，let goodbye message be sent completely

@@ -4,6 +4,7 @@ import os from 'os';
 import childProcess from 'child_process';
 import fs from 'fs';
 import chalk from 'chalk';
+import { globalDtsFileName, scriptingDtsFileName } from './const';
 
 export function md5(content: string): string {
   return crypto
@@ -59,12 +60,12 @@ export function createTsConfig() {
     "jsxFragmentFactory": "Fragment",
     "paths": {
       "scripting": [
-        "./dts/scripting.d.ts"
+        "./dts/${scriptingDtsFileName}"
       ]
     }
   },
   "include": [
-    "./dts/global.d.ts",
+    "./dts/${globalDtsFileName}",
     "scripts"
   ]
 }`;
@@ -79,7 +80,7 @@ export function createTsConfig() {
     const tsconfig = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     if (tsconfig.include && !tsconfig.include.includes('scripts')) {
       tsconfig.include = [
-        "./dts/global.d.ts",
+        `./dts/${globalDtsFileName}`,
         "scripts"
       ];
       fs.writeFileSync(filePath, JSON.stringify(tsconfig, null, 2));
@@ -148,10 +149,11 @@ export function getRelativePath(from: string, to: string) {
 export async function migrateOldFiles() {
   try {
     const list = await fs.promises.readdir(process.cwd());
+    let hasMigrated = false;
 
     for (const file of list) {
 
-      if (file === 'dts' || file === '.vscode' || file == "scripts" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules') {
+      if (file === 'dts' || file == "scripts" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules' || file.startsWith('.')) {
         continue;
       }
 
@@ -170,9 +172,16 @@ export async function migrateOldFiles() {
         continue;
       }
 
+      hasMigrated = true;
       console.log(chalk.blue(`Moving ${filePath} to ${newFilePath}`));
       await fs.promises.rename(filePath, newFilePath);
 
+    }
+
+    if (hasMigrated) {
+      console.log(chalk.green('Old files migrated to the scripts directory.'));
+    } else {
+      console.log(chalk.gray('No old files to migrate.'));
     }
 
   } catch (err) {

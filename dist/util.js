@@ -20,6 +20,7 @@ const os_1 = __importDefault(require("os"));
 const child_process_1 = __importDefault(require("child_process"));
 const fs_1 = __importDefault(require("fs"));
 const chalk_1 = __importDefault(require("chalk"));
+const const_1 = require("./const");
 function md5(content) {
     return crypto_1.default
         .createHash('md5')
@@ -71,12 +72,12 @@ function createTsConfig() {
     "jsxFragmentFactory": "Fragment",
     "paths": {
       "scripting": [
-        "./dts/scripting.d.ts"
+        "./dts/${const_1.scriptingDtsFileName}"
       ]
     }
   },
   "include": [
-    "./dts/global.d.ts",
+    "./dts/${const_1.globalDtsFileName}",
     "scripts"
   ]
 }`;
@@ -90,7 +91,7 @@ function createTsConfig() {
         const tsconfig = JSON.parse(fs_1.default.readFileSync(filePath, 'utf-8'));
         if (tsconfig.include && !tsconfig.include.includes('scripts')) {
             tsconfig.include = [
-                "./dts/global.d.ts",
+                `./dts/${const_1.globalDtsFileName}`,
                 "scripts"
             ];
             fs_1.default.writeFileSync(filePath, JSON.stringify(tsconfig, null, 2));
@@ -151,8 +152,9 @@ function getRelativePath(from, to) {
 async function migrateOldFiles() {
     try {
         const list = await fs_1.default.promises.readdir(process.cwd());
+        let hasMigrated = false;
         for (const file of list) {
-            if (file === 'dts' || file === '.vscode' || file == "scripts" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules') {
+            if (file === 'dts' || file == "scripts" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules' || file.startsWith('.')) {
                 continue;
             }
             const filePath = path_1.default.join(process.cwd(), file);
@@ -165,8 +167,15 @@ async function migrateOldFiles() {
                 console.log(chalk_1.default.yellow(`File ${newFilePath} already exists, skipping...`));
                 continue;
             }
+            hasMigrated = true;
             console.log(chalk_1.default.blue(`Moving ${filePath} to ${newFilePath}`));
             await fs_1.default.promises.rename(filePath, newFilePath);
+        }
+        if (hasMigrated) {
+            console.log(chalk_1.default.green('Old files migrated to the scripts directory.'));
+        }
+        else {
+            console.log(chalk_1.default.gray('No old files to migrate.'));
         }
     }
     catch (err) {

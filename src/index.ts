@@ -54,6 +54,17 @@ yargs(hideBin(process.argv))
       startBonjourService: argv.bonjour,
     });
   })
+  .command('migrate', 'Migrate the scripts in the workspace root directory to the scripts directory.', (yargs) => {
+    return yargs
+      .usage("$0 migrate")
+      .example([
+        ["$0 migrate", "Migrate the scripts in the workspace root directory to the scripts directory."]
+      ]);
+  }, async () => {
+    const { migrateOldFiles } = await import('./util');
+    await migrateOldFiles();
+    process.exit(0);
+  })
   .showHelpOnFail(true)
   .option('help', {
     alias: 'h',

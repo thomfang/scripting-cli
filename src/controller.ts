@@ -1,10 +1,11 @@
 
 import chokidar, { FSWatcher } from 'chokidar';
 import { Socket } from 'socket.io';
-import { ensureDirectoryExistence, getPath, getRelativePath, getScriptPath, md5, tryOpenFileInVSCode, writeDtsFiles } from './util';
+import { ensureDirectoryExistence, getRelativePath, getScriptPath, md5, tryOpenFileInVSCode, writeDtsFiles } from './util';
 import fs from 'fs';
 import chalk from 'chalk';
 import path from 'path';
+import { globalDtsFileName, scriptingDtsFileName } from './const';
 
 export class Controller {
 
@@ -55,7 +56,7 @@ export class Controller {
     fs.promises.readdir(getScriptPath()).then((files) => {
       const serverScriptNames = files.filter((filename) =>
         fs.statSync(getScriptPath(filename)).isDirectory()
-        && filename !== '.vscode'
+        && !filename.startsWith('.')
         && filename !== 'dts'
       )
       socket.emit("serverScripts", serverScriptNames);
@@ -112,8 +113,8 @@ export class Controller {
   }
 
   handleSyncScriptFromClient = async (data: {
-    'global.d.ts': string,
-    'scripting.d.ts': string,
+    [globalDtsFileName]: string,
+    [scriptingDtsFileName]: string,
     scriptName: string
     scriptFiles: Record<string, string>
   }, ack: (result: {
@@ -136,8 +137,8 @@ export class Controller {
       }
 
       await writeDtsFiles({
-        "global.d.ts": data["global.d.ts"],
-        "scripting.d.ts": data["scripting.d.ts"],
+        [globalDtsFileName]: data[globalDtsFileName],
+        [scriptingDtsFileName]: data[scriptingDtsFileName],
       });
 
       this.scriptName = data.scriptName;
@@ -154,7 +155,7 @@ export class Controller {
         })
       );
 
-      console.log(chalk.green('global.d.ts and scripting.d.ts and other script files saved.'));
+      console.log(chalk.green(`${globalDtsFileName} and ${scriptingDtsFileName} and other script files saved.`));
 
       this.createWatcher(data.scriptName);
 
@@ -207,8 +208,8 @@ export class Controller {
       }
 
       await writeDtsFiles({
-        "global.d.ts": data["global.d.ts"],
-        "scripting.d.ts": data["scripting.d.ts"],
+        globalDtsFileName: data[globalDtsFileName],
+        scriptingDtsFileName: data[scriptingDtsFileName],
       });
 
       const scriptDir = getScriptPath(data.scriptName);
@@ -229,6 +230,10 @@ export class Controller {
         const files = await fs.promises.readdir(dir, { withFileTypes: true });
         await Promise.all(
           files.map(async (file) => {
+            // ignore .git and .vscode directories
+            if (file.name.startsWith('.git') || file.name.startsWith('.vscode')) {
+              return;
+            }
             if (file.isFile()) {
               const filePath = path.join(dir, file.name);
               const relativePath = getRelativePath(scriptDir, filePath);

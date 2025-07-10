@@ -9,6 +9,7 @@ const util_1 = require("./util");
 const fs_1 = __importDefault(require("fs"));
 const chalk_1 = __importDefault(require("chalk"));
 const path_1 = __importDefault(require("path"));
+const const_1 = require("./const");
 class Controller {
     static instances = new Map();
     static create(socket, noAutoOpen) {
@@ -43,7 +44,7 @@ class Controller {
         });
         fs_1.default.promises.readdir((0, util_1.getScriptPath)()).then((files) => {
             const serverScriptNames = files.filter((filename) => fs_1.default.statSync((0, util_1.getScriptPath)(filename)).isDirectory()
-                && filename !== '.vscode'
+                && !filename.startsWith('.')
                 && filename !== 'dts');
             socket.emit("serverScripts", serverScriptNames);
         });
@@ -107,8 +108,8 @@ class Controller {
                 this.watcher = null;
             }
             await (0, util_1.writeDtsFiles)({
-                "global.d.ts": data["global.d.ts"],
-                "scripting.d.ts": data["scripting.d.ts"],
+                [const_1.globalDtsFileName]: data[const_1.globalDtsFileName],
+                [const_1.scriptingDtsFileName]: data[const_1.scriptingDtsFileName],
             });
             this.scriptName = data.scriptName;
             const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
@@ -118,7 +119,7 @@ class Controller {
                 (0, util_1.ensureDirectoryExistence)(filePath);
                 await fs_1.default.promises.writeFile(filePath, content);
             }));
-            console.log(chalk_1.default.green('global.d.ts and scripting.d.ts and other script files saved.'));
+            console.log(chalk_1.default.green(`${const_1.globalDtsFileName} and ${const_1.scriptingDtsFileName} and other script files saved.`));
             this.createWatcher(data.scriptName);
             ack({
                 success: true,
@@ -154,8 +155,8 @@ class Controller {
                 this.watcher = null;
             }
             await (0, util_1.writeDtsFiles)({
-                "global.d.ts": data["global.d.ts"],
-                "scripting.d.ts": data["scripting.d.ts"],
+                globalDtsFileName: data[const_1.globalDtsFileName],
+                scriptingDtsFileName: data[const_1.scriptingDtsFileName],
             });
             const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
             if (!fs_1.default.existsSync(scriptDir)) {
@@ -168,6 +169,10 @@ class Controller {
             const readDir = async (dir) => {
                 const files = await fs_1.default.promises.readdir(dir, { withFileTypes: true });
                 await Promise.all(files.map(async (file) => {
+                    // ignore .git and .vscode directories
+                    if (file.name.startsWith('.git') || file.name.startsWith('.vscode')) {
+                        return;
+                    }
                     if (file.isFile()) {
                         const filePath = path_1.default.join(dir, file.name);
                         const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
