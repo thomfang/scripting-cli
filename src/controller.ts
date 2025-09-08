@@ -32,13 +32,13 @@ export class Controller {
 
     socket.emit("socketId", socket.id);
 
-    socket.on('syncScriptFromClient', this.handleSyncScriptFromClient);
+    // socket.on('syncScriptFromClient', this.handleSyncScriptFromClient);
 
-    socket.on("syncScriptFromServer", this.handleSyncScriptFromClient);
+    // socket.on("syncScriptFromServer", this.handleSyncScriptFromClient);
 
-    socket.on('stopDebugScript', this.handleStopDebugScript);
+    // socket.on('stopDebugScript', this.handleStopDebugScript);
 
-    socket.on("getFileContent", this.handleGetFileContent);
+    // socket.on("getFileContent", this.handleGetFileContent);
 
     socket.on("log", this.handleLog);
 
@@ -70,44 +70,52 @@ export class Controller {
       persistent: true,
     });
 
-    this.watcher
-      .on('change', (filePath) => {
-        if (filePath.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
-          // send file content md5 hash to client
-          // const content = fs.readFileSync(filePath, 'utf-8');
-          fs.readFile(filePath, 'utf-8', (err, content) => {
-            if (err) {
-              console.log(chalk.red(`Error reading file: ${err}`));
-              return;
-            }
-            const hash = md5(content);
-            const relativePath = getRelativePath(scriptDir, filePath);
-            console.log(
-              `[${chalk.bold.blue(scriptName)}] File changed: [${hash}]${relativePath}`
-            )
-            this.socket?.emit('fileChange', {
-              scriptName,
-              filePath: relativePath,
-              hash,
-            });
+    const updateHandler = (filePath: string) => {
+      if (filePath.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+        // send file content md5 hash to client
+        // const content = fs.readFileSync(filePath, 'utf-8');
+        fs.readFile(filePath, 'utf-8', (err, content) => {
+          if (err) {
+            console.log(chalk.red(`Error reading file: ${err}`));
+            return;
+          }
+          const hash = md5(content);
+          const relativePath = getRelativePath(scriptDir, filePath);
+          console.log(
+            `[${chalk.bold.blue(scriptName)}] File changed: [${hash}]${relativePath}`
+          )
+          this.socket?.emit('fileChange', {
+            scriptName,
+            filePath: relativePath,
+            hash,
           });
-        }
-        // TODO, add support for other file types
-      })
-      .on('unlink', (filePath) => {
+        });
+      } else {
+        // Other file types, just notify the client to reload the file
         const relativePath = getRelativePath(scriptDir, filePath);
-        this.socket?.emit('deleteFile', {
+        console.log(
+          `[${chalk.bold.blue(scriptName)}] File changed: ${relativePath}`
+        )
+        this.socket?.emit('otherFileChange', {
           scriptName,
           filePath: relativePath,
         });
-      })
-      .on('unlinkDir', (filePath) => {
-        const relativePath = getRelativePath(scriptDir, filePath);
-        this.socket?.emit('deleteFile', {
-          scriptName,
-          filePath: relativePath,
-        });
-      })
+      }
+    };
+
+    const deleteHandler = (filePath: string) => {
+      const relativePath = getRelativePath(scriptDir, filePath);
+      this.socket?.emit('deleteFile', {
+        scriptName,
+        filePath: relativePath,
+      });
+    };
+
+    this.watcher
+      .on('add', updateHandler)
+      .on('change', updateHandler)
+      .on('unlink', deleteHandler)
+      .on('unlinkDir', deleteHandler)
       .on('error', error => console.log(chalk.bgRed(`Watcher error: ${error}`)))
       .on('ready', () => console.log(`[${chalk.bold.blue(scriptName)}] Watching files for changes`));
   }
@@ -193,6 +201,7 @@ export class Controller {
       hash: string
       content: string
     }>
+    otherFiles?: string[]
   }) => void) => {
     try {
       if (this.scriptName === data.scriptName) {
@@ -226,6 +235,8 @@ export class Controller {
         content: string
       }> = {};
 
+      const otherFiles: string[] = [];
+
       const readDir = async (dir: string) => {
         const files = await fs.promises.readdir(dir, { withFileTypes: true });
         await Promise.all(
@@ -234,17 +245,24 @@ export class Controller {
             if (file.name.startsWith('.git') || file.name.startsWith('.vscode')) {
               return;
             }
+
+            // only read js, jsx, ts, tsx, json, md, txt files
             if (file.isFile()) {
               const filePath = path.join(dir, file.name);
               const relativePath = getRelativePath(scriptDir, filePath);
-              const content = await fs.promises.readFile(filePath, 'utf-8').catch((err) => {
-                console.log(chalk.red(`Error reading file: ${err}`));
-              });
-              if (typeof content === "string") {
-                scriptFiles[relativePath] = {
-                  hash: md5(content),
-                  content,
-                };
+
+              if (file.name.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+                const content = await fs.promises.readFile(filePath, 'utf-8').catch((err) => {
+                  console.log(chalk.red(`Error reading file: ${err}`));
+                });
+                if (typeof content === "string") {
+                  scriptFiles[relativePath] = {
+                    hash: md5(content),
+                    content,
+                  };
+                }
+              } else {
+                otherFiles.push(relativePath);
               }
             } else if (file.isDirectory()) {
               await readDir(path.join(dir, file.name));
@@ -259,6 +277,7 @@ export class Controller {
 
       ack({
         scriptFiles,
+        otherFiles: otherFiles.length > 0 ? otherFiles : undefined,
       });
 
       this.createWatcher(data.scriptName);
@@ -342,6 +361,32 @@ export class Controller {
     } catch (e) {
       ack({
         error: `Failed to get file content.\n${e}`,
+      });
+    }
+  }
+
+  handleGetFilePath = async (data: {
+    scriptName: string,
+    relativePath: string
+  }, ack: (result: {
+    error?: string,
+    filePath?: string
+  }) => void) => {
+    if (this.scriptName !== data.scriptName) {
+      ack({
+        error: `Script ${data.scriptName} is not initialized`,
+      });
+      return;
+    }
+
+    const filePath = path.join(getScriptPath(data.scriptName), data.relativePath);
+    if (fs.existsSync(filePath)) {
+      ack({
+        filePath,
+      });
+    } else {
+      ack({
+        error: `File ${filePath} does not exist`,
       });
     }
   }

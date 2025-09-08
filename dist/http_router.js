@@ -41,6 +41,36 @@ const getFileContent = (req, res) => {
         });
     });
 };
+const getFileData = (req, res) => {
+    const { socketId, scriptName, relativePath, } = req.query;
+    if (!socketId) {
+        console.log(chalk_1.default.red(`Socket not found: ${socketId}`));
+    }
+    if (!scriptName || !relativePath) {
+        res.json({
+            error: "Missing parameters: scriptName or relativePath."
+        });
+        return;
+    }
+    const ctrl = controller_1.Controller.get(socketId);
+    if (!ctrl) {
+        console.log(chalk_1.default.red(`Socket not found: ${socketId}`));
+        res.json({
+            error: "Socket not found."
+        });
+        return;
+    }
+    ctrl.handleGetFilePath({
+        scriptName,
+        relativePath,
+    }, (result) => {
+        if (result.error) {
+            res.status(500).send(result.error);
+            return;
+        }
+        res.sendFile(result.filePath);
+    });
+};
 const syncScriptFromClient = (req, res) => {
     const params = req.body;
     const socketId = params.socketId;
@@ -90,6 +120,7 @@ function initHttpRouter(app) {
     app.use(express_1.default.json({ limit: '50mb' }));
     app.use(express_1.default.urlencoded({ extended: true }));
     app.get("/getFileContent", getFileContent);
+    app.get("/getFileData", getFileData);
     app.post("/syncScriptFromClient", syncScriptFromClient);
     app.post("/syncScriptFromServer", syncScriptFromServer);
 }

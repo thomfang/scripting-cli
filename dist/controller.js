@@ -28,10 +28,10 @@ class Controller {
         this.noAutoOpen = noAutoOpen;
         this.socket = socket;
         socket.emit("socketId", socket.id);
-        socket.on('syncScriptFromClient', this.handleSyncScriptFromClient);
-        socket.on("syncScriptFromServer", this.handleSyncScriptFromClient);
-        socket.on('stopDebugScript', this.handleStopDebugScript);
-        socket.on("getFileContent", this.handleGetFileContent);
+        // socket.on('syncScriptFromClient', this.handleSyncScriptFromClient);
+        // socket.on("syncScriptFromServer", this.handleSyncScriptFromClient);
+        // socket.on('stopDebugScript', this.handleStopDebugScript);
+        // socket.on("getFileContent", this.handleGetFileContent);
         socket.on("log", this.handleLog);
         socket.on("openFile", this.handleOpenFile);
         socket.on('disconnect', (reason) => {
@@ -55,8 +55,7 @@ class Controller {
             ignored: /(^|[\/\\])\../,
             persistent: true,
         });
-        this.watcher
-            .on('change', (filePath) => {
+        const updateHandler = (filePath) => {
             if (filePath.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
                 // send file content md5 hash to client
                 // const content = fs.readFileSync(filePath, 'utf-8');
@@ -75,22 +74,28 @@ class Controller {
                     });
                 });
             }
-            // TODO, add support for other file types
-        })
-            .on('unlink', (filePath) => {
+            else {
+                // Other file types, just notify the client to reload the file
+                const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
+                console.log(`[${chalk_1.default.bold.blue(scriptName)}] File changed: ${relativePath}`);
+                this.socket?.emit('otherFileChange', {
+                    scriptName,
+                    filePath: relativePath,
+                });
+            }
+        };
+        const deleteHandler = (filePath) => {
             const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
             this.socket?.emit('deleteFile', {
                 scriptName,
                 filePath: relativePath,
             });
-        })
-            .on('unlinkDir', (filePath) => {
-            const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
-            this.socket?.emit('deleteFile', {
-                scriptName,
-                filePath: relativePath,
-            });
-        })
+        };
+        this.watcher
+            .on('add', updateHandler)
+            .on('change', updateHandler)
+            .on('unlink', deleteHandler)
+            .on('unlinkDir', deleteHandler)
             .on('error', error => console.log(chalk_1.default.bgRed(`Watcher error: ${error}`)))
             .on('ready', () => console.log(`[${chalk_1.default.bold.blue(scriptName)}] Watching files for changes`));
     }
@@ -166,6 +171,7 @@ class Controller {
                 return;
             }
             const scriptFiles = {};
+            const otherFiles = [];
             const readDir = async (dir) => {
                 const files = await fs_1.default.promises.readdir(dir, { withFileTypes: true });
                 await Promise.all(files.map(async (file) => {
@@ -173,17 +179,23 @@ class Controller {
                     if (file.name.startsWith('.git') || file.name.startsWith('.vscode')) {
                         return;
                     }
+                    // only read js, jsx, ts, tsx, json, md, txt files
                     if (file.isFile()) {
                         const filePath = path_1.default.join(dir, file.name);
                         const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
-                        const content = await fs_1.default.promises.readFile(filePath, 'utf-8').catch((err) => {
-                            console.log(chalk_1.default.red(`Error reading file: ${err}`));
-                        });
-                        if (typeof content === "string") {
-                            scriptFiles[relativePath] = {
-                                hash: (0, util_1.md5)(content),
-                                content,
-                            };
+                        if (file.name.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+                            const content = await fs_1.default.promises.readFile(filePath, 'utf-8').catch((err) => {
+                                console.log(chalk_1.default.red(`Error reading file: ${err}`));
+                            });
+                            if (typeof content === "string") {
+                                scriptFiles[relativePath] = {
+                                    hash: (0, util_1.md5)(content),
+                                    content,
+                                };
+                            }
+                        }
+                        else {
+                            otherFiles.push(relativePath);
                         }
                     }
                     else if (file.isDirectory()) {
@@ -195,6 +207,7 @@ class Controller {
             this.scriptName = data.scriptName;
             ack({
                 scriptFiles,
+                otherFiles: otherFiles.length > 0 ? otherFiles : undefined,
             });
             this.createWatcher(data.scriptName);
             if (!this.noAutoOpen) {
@@ -257,6 +270,25 @@ class Controller {
         catch (e) {
             ack({
                 error: `Failed to get file content.\n${e}`,
+            });
+        }
+    };
+    handleGetFilePath = async (data, ack) => {
+        if (this.scriptName !== data.scriptName) {
+            ack({
+                error: `Script ${data.scriptName} is not initialized`,
+            });
+            return;
+        }
+        const filePath = path_1.default.join((0, util_1.getScriptPath)(data.scriptName), data.relativePath);
+        if (fs_1.default.existsSync(filePath)) {
+            ack({
+                filePath,
+            });
+        }
+        else {
+            ack({
+                error: `File ${filePath} does not exist`,
             });
         }
     };
