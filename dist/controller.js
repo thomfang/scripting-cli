@@ -160,8 +160,8 @@ class Controller {
                 this.watcher = null;
             }
             await (0, util_1.writeDtsFiles)({
-                globalDtsFileName: data[const_1.globalDtsFileName],
-                scriptingDtsFileName: data[const_1.scriptingDtsFileName],
+                [const_1.globalDtsFileName]: data[const_1.globalDtsFileName],
+                [const_1.scriptingDtsFileName]: data[const_1.scriptingDtsFileName],
             });
             const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
             if (!fs_1.default.existsSync(scriptDir)) {

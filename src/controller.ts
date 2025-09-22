@@ -217,8 +217,8 @@ export class Controller {
       }
 
       await writeDtsFiles({
-        globalDtsFileName: data[globalDtsFileName],
-        scriptingDtsFileName: data[scriptingDtsFileName],
+        [globalDtsFileName]: data[globalDtsFileName],
+        [scriptingDtsFileName]: data[scriptingDtsFileName],
       });
 
       const scriptDir = getScriptPath(data.scriptName);
