@@ -30,8 +30,8 @@ class Controller {
         socket.emit("socketId", socket.id);
         // socket.on('syncScriptFromClient', this.handleSyncScriptFromClient);
         // socket.on("syncScriptFromServer", this.handleSyncScriptFromClient);
-        // socket.on('stopDebugScript', this.handleStopDebugScript);
         // socket.on("getFileContent", this.handleGetFileContent);
+        socket.on('stopDebugScript', this.handleStopDebugScript);
         socket.on("log", this.handleLog);
         socket.on("openFile", this.handleOpenFile);
         socket.on('disconnect', (reason) => {
