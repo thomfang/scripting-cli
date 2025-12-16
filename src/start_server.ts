@@ -2,6 +2,7 @@
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import os from 'os';
 import ip from 'ip';
 import Bonjour from 'bonjour';
 import chalk from 'chalk';
@@ -14,6 +15,88 @@ const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server);
 const bonjour = Bonjour();
+
+// Keywords to identify VPN/virtual network adapters that should be excluded
+const VIRTUAL_ADAPTER_KEYWORDS = [
+  'virtual',
+  'vpn',
+  'vethernet',
+  'vmware',
+  'vmnet',
+  'vbox',
+  'virtualbox',
+  'docker',
+  'wsl',
+  'loopback',
+  'hamachi',
+  'tunngle',
+  'cloudflare',
+  'warp',
+  'tailscale',
+  'zerotier'
+];
+
+// Preferred adapter names for real network interfaces
+const PREFERRED_ADAPTER_KEYWORDS = [
+  'ethernet',
+  'eth',
+  'wi-fi',
+  'wifi',
+  'wlan',
+  'en0',
+  'en1'
+];
+
+/**
+ * Get the local network IP address, filtering out VPN and virtual adapters.
+ * Prioritizes real network adapters (Ethernet, Wi-Fi) over virtual ones.
+ */
+function getLocalNetworkIP(): string | null {
+  const interfaces = os.networkInterfaces();
+  const results: { name: string; address: string; priority: number }[] = [];
+
+  for (const [name, addrs] of Object.entries(interfaces)) {
+    if (!addrs) continue;
+
+    const lowerName = name.toLowerCase();
+
+    // Skip virtual/VPN adapters
+    if (VIRTUAL_ADAPTER_KEYWORDS.some(keyword => lowerName.includes(keyword))) {
+      continue;
+    }
+
+    for (const addr of addrs) {
+      // Only consider non-internal IPv4 addresses
+      if (addr.family === 'IPv4' && !addr.internal) {
+        // Skip certain IP ranges typically used by VPNs
+        // 198.18.0.0/15 is reserved for network benchmark testing (Cloudflare WARP uses this)
+        // 100.64.0.0/10 is Carrier-grade NAT (Tailscale uses this)
+        const ip = addr.address;
+        const firstOctet = parseInt(ip.split('.')[0], 10);
+        const secondOctet = parseInt(ip.split('.')[1], 10);
+
+        if (firstOctet === 198 && (secondOctet === 18 || secondOctet === 19)) {
+          continue; // Skip 198.18.0.0/15
+        }
+        if (firstOctet === 100 && secondOctet >= 64 && secondOctet <= 127) {
+          continue; // Skip 100.64.0.0/10
+        }
+
+        // Determine priority (lower is better)
+        let priority = 10;
+        if (PREFERRED_ADAPTER_KEYWORDS.some(keyword => lowerName.includes(keyword))) {
+          priority = 1;
+        }
+
+        results.push({ name, address: ip, priority });
+      }
+    }
+  }
+
+  // Sort by priority and return the best match
+  results.sort((a, b) => a.priority - b.priority);
+  return results.length > 0 ? results[0].address : null;
+}
 
 export function startServer({ port, noAutoOpen, startBonjourService }: {
   port: number | undefined
@@ -39,7 +122,7 @@ export function startServer({ port, noAutoOpen, startBonjourService }: {
 
     // await migrateOldFiles(); // Migrate old files to the scripts directory
 
-    const ipAddress = ip.address()
+    const ipAddress = getLocalNetworkIP() ?? ip.address();
     const address = `http://${ipAddress}:${PORT}`;
 
     if (startBonjourService) {
