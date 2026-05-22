@@ -1,6 +1,6 @@
 # Outil en ligne de commande pour l'application Scripting
 
-Bienvenue dans `scripting-cli`, l'outil en ligne de commande conçu pour l'intégration avec l'application Scripting. Cet outil vous permet de synchroniser et de prévisualiser vos scripts en temps réel pendant que vous les développez à l'aide de votre éditeur de bureau préféré, tel que VSCode.
+Bienvenue dans `scripting-cli`, l'outil en ligne de commande conçu pour l'intégration avec l'application Scripting. Cet outil vous permet de synchroniser et de prévisualiser vos scripts en temps réel pendant que vous les développez à l'aide de votre éditeur de bureau préféré (VSCode, Cursor, Windsurf, Zed, WebStorm, Vim, et plus encore).
 
 [English](./README.md) | [中文](./README_zh.md) | [日本語](./README_ja.md) | [Deutsch](./README_de.md) | [Italiano](./README_it.md)
 
@@ -67,6 +67,79 @@ Après la connexion, sélectionnez le projet de script que vous souhaitez débog
 
 Lorsque vous écrivez et enregistrez des scripts dans votre éditeur de bureau (par exemple, VSCode), les modifications seront automatiquement synchronisées avec l'application Scripting et exécutées en temps réel, rendant le développement et le débogage beaucoup plus fluides.
 
+## Sélection de l'éditeur et fichier de configuration
+
+`scripting-cli` n'est plus lié à VSCode. Lors du premier lancement de `npx scripting-cli start`, vous serez invité à choisir l'éditeur que vous utilisez réellement. Votre choix est enregistré dans `scripting.config.json` à la racine de votre projet, afin que l'invite ne réapparaisse plus.
+
+### Éditeurs pris en charge
+
+VSCode, VSCode Insiders, VSCodium, Cursor, Windsurf, Trae, Zed, WebStorm, IntelliJ IDEA, Fleet, Sublime Text, Nova, Vim, Neovim, Emacs, ainsi que `custom` (toute autre commande) et `none` (désactiver l'ouverture automatique).
+
+Les éditeurs détectés dans votre `PATH` sont marqués d'un ✓ et listés en premier.
+
+### Remplacement ponctuel
+
+```bash
+# Utiliser Cursor uniquement pour cette exécution (ne modifie pas scripting.config.json)
+npx scripting-cli start --editor=cursor
+
+# Relancer la sélection interactive et écraser le choix enregistré
+npx scripting-cli start --reconfigure
+```
+
+### Fichier de configuration
+
+`scripting-cli` recherche le premier fichier de configuration trouvé dans cet ordre :
+
+```
+scripting.config.ts
+scripting.config.mts
+scripting.config.cts
+scripting.config.js
+scripting.config.mjs
+scripting.config.cjs
+scripting.config.json
+```
+
+Le fichier par défaut est JSON afin que le flux npx reste sans installation. Les fichiers TypeScript et JavaScript sont chargés via [jiti](https://github.com/unjs/jiti).
+
+```jsonc
+// scripting.config.json
+{
+  "editor": "cursor",          // voir les éditeurs pris en charge ci-dessus
+  "editorCommand": "cursor",   // optionnel, remplace la commande par défaut
+  "editorArgs": [],            // optionnel, arguments CLI supplémentaires
+  "port": 3000,
+  "autoOpen": true,
+  "generateTsConfig": true,    // mettre à false si vous gérez tsconfig.json vous-même
+  "logLevel": "info"           // "silent" | "error" | "warn" | "info" | "debug"
+}
+```
+
+Les drapeaux CLI ont la priorité sur le fichier de configuration.
+
+### Complétion de types (configuration TypeScript)
+
+Pour bénéficier de l'autocomplétion dans `scripting.config.ts`, installez scripting-cli en tant que dépendance de développement :
+
+```bash
+npm i -D scripting-cli
+```
+
+Puis :
+
+```ts
+// scripting.config.ts
+import { defineConfig } from 'scripting-cli'
+
+export default defineConfig({
+  editor: 'cursor',
+  port: 4000,
+})
+```
+
+Vous pouvez également utiliser `.ts` sans installer le paquet — `npx scripting-cli start` le chargera toujours via `jiti`. Vous n'aurez simplement pas les indications de types dans l'IDE.
+
 ## Exemple de flux de travail
 
 1. Démarrer le service local :
@@ -89,8 +162,9 @@ Lorsque vous écrivez et enregistrez des scripts dans votre éditeur de bureau (
   ```bash
   npx scripting-cli start --no-auto-open
   ```
+* Utilisez `--editor=<key>` pour remplacer l'éditeur configuré pour une seule exécution, ou `--reconfigure` pour relancer la sélection interactive de l'éditeur.
 * Pour utiliser le service Bonjour, assurez-vous que votre système le prend en charge. Sur Windows, vous devrez peut-être installer Bonjour manuellement. Ensuite, utilisez l'option `--bonjour` pour l'activer.
-* Cet outil est idéal pour les utilisateurs qui préfèrent les éditeurs de bureau comme VSCode et souhaitent une synchronisation et un débogage du code sans faille avec l'application Scripting.
+* Cet outil fonctionne avec n'importe quel éditeur de bureau et offre une synchronisation et un débogage du code sans faille avec l'application Scripting.
 
 ## Dépannage
 

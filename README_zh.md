@@ -1,6 +1,6 @@
 # Scripting 应用命令行工具
 
-欢迎使用 `scripting-cli` 命令行工具，它旨在与 Scripting 应用集成。该工具允许您在使用喜爱的桌面编辑器（如 VSCode）开发脚本时，实现实时同步和预览。
+欢迎使用 `scripting-cli` 命令行工具，它旨在与 Scripting 应用集成。该工具允许您在使用喜爱的桌面编辑器（VSCode、Cursor、Windsurf、Zed、WebStorm、Vim 等）开发脚本时，实现实时同步和预览。
 
 [English](./README.md) | [日本語](./README_ja.md) | [Deutsch](./README_de.md) | [Français](./README_fr.md) | [Italiano](./README_it.md)
 
@@ -67,6 +67,79 @@ npx scripting-cli start --bonjour
 
 在桌面编辑器（如 VSCode）中编写并保存脚本时，更新的代码将自动同步到 Scripting 应用并实时执行，使开发和调试更加顺畅。
 
+## 编辑器选择与配置文件
+
+`scripting-cli` 不再绑定 VSCode。首次运行 `npx scripting-cli start` 时，会提示您选择实际使用的编辑器。选择会保存到项目根目录的 `scripting.config.json`，下次启动不再询问。
+
+### 支持的编辑器
+
+VSCode、VSCode Insiders、VSCodium、Cursor、Windsurf、Trae、Zed、WebStorm、IntelliJ IDEA、Fleet、Sublime Text、Nova、Vim、Neovim、Emacs，以及 `custom`（任意命令）和 `none`（禁用自动打开）。
+
+在 `PATH` 中检测到的编辑器会标记 ✓ 并排在前面。
+
+### 单次覆盖
+
+```bash
+# 仅本次使用 Cursor（不修改 scripting.config.json）
+npx scripting-cli start --editor=cursor
+
+# 重新走交互式编辑器选择并覆盖已保存的选择
+npx scripting-cli start --reconfigure
+```
+
+### 配置文件
+
+`scripting-cli` 按以下顺序查找第一个存在的配置文件：
+
+```
+scripting.config.ts
+scripting.config.mts
+scripting.config.cts
+scripting.config.js
+scripting.config.mjs
+scripting.config.cjs
+scripting.config.json
+```
+
+默认生成的是 JSON，让 npx 流程保持零安装。TypeScript / JavaScript 文件通过 [jiti](https://github.com/unjs/jiti) 加载。
+
+```jsonc
+// scripting.config.json
+{
+  "editor": "cursor",          // 见上方支持的编辑器
+  "editorCommand": "cursor",   // 可选，覆盖默认命令
+  "editorArgs": [],            // 可选，额外的 CLI 参数
+  "port": 3000,
+  "autoOpen": true,
+  "generateTsConfig": true,    // 若您自行维护 tsconfig.json，可设为 false
+  "logLevel": "info"           // "silent" | "error" | "warn" | "info" | "debug"
+}
+```
+
+CLI 参数优先级高于配置文件。
+
+### 类型补全（TypeScript 配置）
+
+如需在 `scripting.config.ts` 中获得自动补全，请将 scripting-cli 安装为开发依赖：
+
+```bash
+npm i -D scripting-cli
+```
+
+然后：
+
+```ts
+// scripting.config.ts
+import { defineConfig } from 'scripting-cli'
+
+export default defineConfig({
+  editor: 'cursor',
+  port: 4000,
+})
+```
+
+不安装包也可以使用 `.ts`——`npx scripting-cli start` 仍会通过 `jiti` 加载，只是 IDE 无类型提示。
+
 ## 示例工作流程
 
 1. 启动本地服务：
@@ -89,8 +162,9 @@ npx scripting-cli start --bonjour
   ```bash
   npx scripting-cli start --no-auto-open
   ```
+* 使用 `--editor=<key>` 可临时覆盖配置中的编辑器，使用 `--reconfigure` 可重新进入交互式编辑器选择。
 * 要使用 Bonjour 服务，请确保系统支持该功能。在 Windows 上，可能需要手动安装 Bonjour。然后，使用 `--bonjour` 选项启用该服务。
-* 该工具适用于喜欢使用 VSCode 等桌面编辑器，并希望与 Scripting 应用实现无缝代码同步和调试的用户。
+* 该工具兼容任意桌面编辑器，能与 Scripting 应用实现无缝代码同步和调试。
 
 ## 故障排除
 

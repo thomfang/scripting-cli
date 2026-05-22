@@ -15,6 +15,8 @@ const qrcode_terminal_1 = __importDefault(require("qrcode-terminal"));
 const util_1 = require("./util");
 const controller_1 = require("./controller");
 const http_router_1 = require("./http_router");
+const config_1 = require("./config");
+const editors_1 = require("./editors");
 const app = (0, express_1.default)();
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server);
@@ -91,19 +93,27 @@ function getLocalNetworkIP() {
     results.sort((a, b) => a.priority - b.priority);
     return results.length > 0 ? results[0].address : null;
 }
-function startServer({ port, noAutoOpen, startBonjourService }) {
-    // console.log("port", port, "noAutoOpen", noAutoOpen);
-    const PORT = port ?? 3000;
+async function startServer({ port, noAutoOpen, startBonjourService, editorOverride, reconfigure }) {
+    const config = await (0, config_1.resolveConfig)({
+        port,
+        noAutoOpen,
+        editorOverride,
+        reconfigure,
+    });
+    const PORT = config.port;
+    const editor = (0, editors_1.getEditor)(config.editor);
+    console.log(chalk_1.default.gray(`Editor: ${editor?.displayName ?? config.editor}`));
     (0, http_router_1.initHttpRouter)(app);
     io.on('connection', (socket) => {
-        controller_1.Controller.create(socket, noAutoOpen);
+        controller_1.Controller.create(socket, config);
         console.log(chalk_1.default.blue(`Client [${socket.id}] connected`));
     });
     server.listen(PORT, async () => {
-        (0, util_1.createTsConfig)(); // Create tsconfig.json when the server starts
-        (0, util_1.createVSCodeSettings)(); // Create vscode settings.json when the server starts
-        (0, util_1.ensureScriptsDirectory)(); // Ensure the scripts directory exists
-        // await migrateOldFiles(); // Migrate old files to the scripts directory
+        if (config.generateTsConfig) {
+            (0, util_1.createTsConfig)();
+        }
+        (0, editors_1.writeEditorSettings)(config);
+        (0, util_1.ensureScriptsDirectory)();
         const ipAddress = getLocalNetworkIP() ?? ip_1.default.address();
         const address = `http://${ipAddress}:${PORT}`;
         if (startBonjourService) {

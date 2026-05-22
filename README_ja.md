@@ -1,6 +1,6 @@
 # Scripting アプリ コマンドラインツール
 
-Scripting アプリとの統合用に設計された `scripting-cli` コマンドラインツールへようこそ。このツールを使用すると、お気に入りのデスクトップエディター（例：VSCode）でスクリプトを開発しながら、リアルタイムで同期およびプレビューできます。
+Scripting アプリとの統合用に設計された `scripting-cli` コマンドラインツールへようこそ。このツールを使用すると、お気に入りのデスクトップエディター（VSCode、Cursor、Windsurf、Zed、WebStorm、Vim など）でスクリプトを開発しながら、リアルタイムで同期およびプレビューできます。
 
 [English](./README.md) | [中文](./README_zh.md) | [Deutsch](./README_de.md) | [Français](./README_fr.md) | [Italiano](./README_it.md)
 
@@ -67,6 +67,79 @@ npx scripting-cli start --bonjour
 
 デスクトップエディター（例：VSCode）でスクリプトを作成して保存すると、変更内容が自動的に Scripting アプリと同期され、リアルタイムで実行されます。これにより、開発とデバッグがスムーズになります。
 
+## エディターの選択と設定ファイル
+
+`scripting-cli` は VSCode に縛られなくなりました。`npx scripting-cli start` を初めて実行すると、実際に使用するエディターを選択するように求められます。選択内容はプロジェクトのルートにある `scripting.config.json` に保存されるため、次回以降は確認されません。
+
+### 対応エディター
+
+VSCode、VSCode Insiders、VSCodium、Cursor、Windsurf、Trae、Zed、WebStorm、IntelliJ IDEA、Fleet、Sublime Text、Nova、Vim、Neovim、Emacs、さらに `custom`（任意のコマンド）と `none`（自動オープンを無効化）。
+
+`PATH` 上で検出されたエディターには ✓ が付き、先頭に表示されます。
+
+### 実行ごとの上書き
+
+```bash
+# 今回の実行のみ Cursor を使用（scripting.config.json は変更されません）
+npx scripting-cli start --editor=cursor
+
+# 対話式の選択をやり直し、保存済みの選択を上書き
+npx scripting-cli start --reconfigure
+```
+
+### 設定ファイル
+
+`scripting-cli` は以下の順序で最初に見つかった設定ファイルを使用します：
+
+```
+scripting.config.ts
+scripting.config.mts
+scripting.config.cts
+scripting.config.js
+scripting.config.mjs
+scripting.config.cjs
+scripting.config.json
+```
+
+デフォルトは JSON ファイルで、npx フローをゼロインストールに保ちます。TypeScript および JavaScript ファイルは [jiti](https://github.com/unjs/jiti) 経由で読み込まれます。
+
+```jsonc
+// scripting.config.json
+{
+  "editor": "cursor",          // 上記の対応エディターを参照
+  "editorCommand": "cursor",   // 任意、デフォルトコマンドを上書き
+  "editorArgs": [],            // 任意、追加の CLI 引数
+  "port": 3000,
+  "autoOpen": true,
+  "generateTsConfig": true,    // 自分で tsconfig.json を管理する場合は false に設定
+  "logLevel": "info"           // "silent" | "error" | "warn" | "info" | "debug"
+}
+```
+
+CLI フラグは設定ファイルより優先されます。
+
+### 型補完（TypeScript 設定）
+
+`scripting.config.ts` で自動補完を得るには、scripting-cli を開発依存関係としてインストールします：
+
+```bash
+npm i -D scripting-cli
+```
+
+その後：
+
+```ts
+// scripting.config.ts
+import { defineConfig } from 'scripting-cli'
+
+export default defineConfig({
+  editor: 'cursor',
+  port: 4000,
+})
+```
+
+パッケージをインストールせずに `.ts` を使用することもできます — `npx scripting-cli start` は引き続き `jiti` 経由で読み込みます。ただし IDE の型ヒントは得られません。
+
 ## 例：ワークフロー
 
 1. ローカルサービスを起動します：
@@ -89,8 +162,9 @@ npx scripting-cli start --bonjour
   ```bash
   npx scripting-cli start --no-auto-open
   ```
+* `--editor=<key>` を使用すると、1 回の実行のみ設定済みのエディターを上書きでき、`--reconfigure` を使用すると対話式のエディター選択をやり直せます。
 * Bonjour サービスを使用するには、システムがその機能をサポートしていることを確認してください。Windows では、Bonjour を手動でインストールする必要がある場合があります。その後、`--bonjour` オプションを使用してサービスを有効にします。
-* このツールは、VSCode などのデスクトップエディターを好み、Scripting アプリとのシームレスなコード同期とデバッグを望むユーザーに最適です。
+* このツールはあらゆるデスクトップエディターで動作し、Scripting アプリとのシームレスなコード同期とデバッグを提供します。
 
 ## トラブルシューティング
 

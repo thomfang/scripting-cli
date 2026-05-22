@@ -10,10 +10,11 @@ const fs_1 = __importDefault(require("fs"));
 const chalk_1 = __importDefault(require("chalk"));
 const path_1 = __importDefault(require("path"));
 const const_1 = require("./const");
+const editors_1 = require("./editors");
 class Controller {
     static instances = new Map();
-    static create(socket, noAutoOpen) {
-        const ctrl = new Controller(socket, noAutoOpen);
+    static create(socket, config) {
+        const ctrl = new Controller(socket, config);
         Controller.instances.set(socket.id, ctrl);
         return ctrl;
     }
@@ -23,9 +24,9 @@ class Controller {
     watcher = null;
     scriptName = null;
     socket = null;
-    noAutoOpen;
-    constructor(socket, noAutoOpen) {
-        this.noAutoOpen = noAutoOpen;
+    config;
+    constructor(socket, config) {
+        this.config = config;
         this.socket = socket;
         socket.emit("socketId", socket.id);
         // socket.on('syncScriptFromClient', this.handleSyncScriptFromClient);
@@ -129,13 +130,13 @@ class Controller {
             ack({
                 success: true,
             });
-            if (!this.noAutoOpen) {
-                // Open the entry file in VSCode after a delay
+            if (this.config.autoOpen) {
+                // Open the entry file in the configured editor after a delay
                 // to ensure the response is sent. Because the open file command
                 // may suspend the response and cause the client to not receive the ack.
                 setTimeout(() => {
                     const entryFilePath = path_1.default.join(scriptDir, "index.tsx");
-                    (0, util_1.tryOpenFileInVSCode)(entryFilePath);
+                    (0, editors_1.openFileInEditor)(entryFilePath, this.config);
                 }, 1000);
             }
         }
@@ -210,13 +211,13 @@ class Controller {
                 otherFiles: otherFiles.length > 0 ? otherFiles : undefined,
             });
             this.createWatcher(data.scriptName);
-            if (!this.noAutoOpen) {
-                // Open the entry file in VSCode after a delay
+            if (this.config.autoOpen) {
+                // Open the entry file in the configured editor after a delay
                 // to ensure the response is sent. Because the open file command
                 // may suspend the response and cause the client to not receive the ack.
                 setTimeout(() => {
                     const entryFilePath = path_1.default.join(scriptDir, "index.tsx");
-                    (0, util_1.tryOpenFileInVSCode)(entryFilePath);
+                    (0, editors_1.openFileInEditor)(entryFilePath, this.config);
                 }, 1000);
             }
         }
@@ -237,8 +238,8 @@ class Controller {
             return;
         }
         const filePath = path_1.default.join((0, util_1.getScriptPath)(this.scriptName), data.relativePath);
-        if (!this.noAutoOpen && fs_1.default.existsSync(filePath)) {
-            (0, util_1.tryOpenFileInVSCode)(filePath);
+        if (this.config.autoOpen && fs_1.default.existsSync(filePath)) {
+            (0, editors_1.openFileInEditor)(filePath, this.config);
         }
     };
     handleStopDebugScript = (data, ack) => {

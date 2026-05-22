@@ -7,9 +7,12 @@ import ip from 'ip';
 import Bonjour from 'bonjour';
 import chalk from 'chalk';
 import qrcode from 'qrcode-terminal';
-import { createTsConfig, createVSCodeSettings, ensureScriptsDirectory, } from './util';
+import { createTsConfig, ensureScriptsDirectory } from './util';
 import { Controller } from './controller';
 import { initHttpRouter } from './http_router';
+import { resolveConfig } from './config';
+import { writeEditorSettings, getEditor } from './editors';
+import { ResolvedConfig } from './types';
 
 const app = express();
 const server = http.createServer(app);
@@ -98,29 +101,39 @@ function getLocalNetworkIP(): string | null {
   return results.length > 0 ? results[0].address : null;
 }
 
-export function startServer({ port, noAutoOpen, startBonjourService }: {
+export async function startServer({ port, noAutoOpen, startBonjourService, editorOverride, reconfigure }: {
   port: number | undefined
   noAutoOpen: boolean | undefined
   startBonjourService: boolean | undefined
+  editorOverride?: string | undefined
+  reconfigure?: boolean | undefined
 }) {
 
-  // console.log("port", port, "noAutoOpen", noAutoOpen);
+  const config: ResolvedConfig = await resolveConfig({
+    port,
+    noAutoOpen,
+    editorOverride,
+    reconfigure,
+  });
 
-  const PORT = port ?? 3000;
+  const PORT = config.port;
+
+  const editor = getEditor(config.editor);
+  console.log(chalk.gray(`Editor: ${editor?.displayName ?? config.editor}`));
 
   initHttpRouter(app);
 
   io.on('connection', (socket) => {
-    Controller.create(socket, noAutoOpen);
+    Controller.create(socket, config);
     console.log(chalk.blue(`Client [${socket.id}] connected`));
   });
 
   server.listen(PORT, async () => {
-    createTsConfig(); // Create tsconfig.json when the server starts
-    createVSCodeSettings(); // Create vscode settings.json when the server starts
-    ensureScriptsDirectory(); // Ensure the scripts directory exists
-
-    // await migrateOldFiles(); // Migrate old files to the scripts directory
+    if (config.generateTsConfig) {
+      createTsConfig();
+    }
+    writeEditorSettings(config);
+    ensureScriptsDirectory();
 
     const ipAddress = getLocalNetworkIP() ?? ip.address();
     const address = `http://${ipAddress}:${PORT}`;

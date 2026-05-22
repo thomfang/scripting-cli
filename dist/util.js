@@ -6,9 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.md5 = md5;
 exports.getPath = getPath;
 exports.getScriptPath = getScriptPath;
-exports.tryOpenFileInVSCode = tryOpenFileInVSCode;
 exports.createTsConfig = createTsConfig;
-exports.createVSCodeSettings = createVSCodeSettings;
 exports.ensureScriptsDirectory = ensureScriptsDirectory;
 exports.ensureDirectoryExistence = ensureDirectoryExistence;
 exports.writeDtsFiles = writeDtsFiles;
@@ -16,8 +14,6 @@ exports.getRelativePath = getRelativePath;
 exports.migrateOldFiles = migrateOldFiles;
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
-const os_1 = __importDefault(require("os"));
-const child_process_1 = __importDefault(require("child_process"));
 const fs_1 = __importDefault(require("fs"));
 const chalk_1 = __importDefault(require("chalk"));
 const const_1 = require("./const");
@@ -35,20 +31,6 @@ function getScriptPath(filename) {
         return path_1.default.join(process.cwd(), 'scripts', filename);
     }
     return path_1.default.join(process.cwd(), 'scripts');
-}
-function tryOpenFileInVSCode(filePath) {
-    let cmd = `code "${filePath}"`;
-    if (os_1.default.platform() === "win32") {
-        cmd = `cmd.exe /c ${cmd}`;
-    }
-    else if (os_1.default.platform() === "linux") {
-        const shell = process.env["SHELL"];
-        cmd = `${shell} -c ${cmd}`;
-    }
-    else {
-        cmd = `"/Applications/Visual Studio Code.app/Contents/MacOS/Electron" "${filePath}"`;
-    }
-    child_process_1.default.execSync(cmd);
 }
 // Function to create tsconfig.json
 function createTsConfig() {
@@ -100,21 +82,6 @@ function createTsConfig() {
         else {
             console.log(chalk_1.default.gray('tsconfig.json already exists.'));
         }
-    }
-}
-function createVSCodeSettings() {
-    const settingsContent = `{
-  "typescript.format.semicolons": "remove",
-  "typescript.preferences.jsxAttributeCompletionStyle": "braces",
-}`;
-    const filePath = getPath('.vscode/settings.json');
-    ensureDirectoryExistence(filePath);
-    if (!fs_1.default.existsSync(filePath)) {
-        fs_1.default.writeFileSync(filePath, settingsContent);
-        console.log(chalk_1.default.green('.vscode/settings.json created.'));
-    }
-    else {
-        console.log(chalk_1.default.gray('.vscode/settings.json already exists.'));
     }
 }
 function ensureScriptsDirectory() {

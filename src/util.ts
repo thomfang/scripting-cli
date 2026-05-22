@@ -1,7 +1,5 @@
 import path from 'path';
 import crypto from 'crypto';
-import os from 'os';
-import childProcess from 'child_process';
 import fs from 'fs';
 import chalk from 'chalk';
 import { globalDtsFileName, scriptingDtsFileName } from './const';
@@ -23,20 +21,6 @@ export function getScriptPath(filename?: string) {
   }
   return path.join(process.cwd(), 'scripts');
 }
-
-export function tryOpenFileInVSCode(filePath: string) {
-  let cmd = `code "${filePath}"`;
-  if (os.platform() === "win32") {
-    cmd = `cmd.exe /c ${cmd}`;
-  } else if (os.platform() === "linux") {
-    const shell = process.env["SHELL"];
-    cmd = `${shell} -c ${cmd}`;
-  } else {
-    cmd = `"/Applications/Visual Studio Code.app/Contents/MacOS/Electron" "${filePath}"`;
-  }
-  childProcess.execSync(cmd);
-}
-
 
 // Function to create tsconfig.json
 export function createTsConfig() {
@@ -89,23 +73,6 @@ export function createTsConfig() {
       console.log(chalk.gray('tsconfig.json already exists.'));
     }
   }
-}
-
-export function createVSCodeSettings() {
-  const settingsContent = `{
-  "typescript.format.semicolons": "remove",
-  "typescript.preferences.jsxAttributeCompletionStyle": "braces",
-}`;
-
-  const filePath = getPath('.vscode/settings.json');
-  ensureDirectoryExistence(filePath);
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, settingsContent);
-    console.log(chalk.green('.vscode/settings.json created.'));
-  } else {
-    console.log(chalk.gray('.vscode/settings.json already exists.'));
-  }
-
 }
 
 export function ensureScriptsDirectory() {

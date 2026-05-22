@@ -1,6 +1,6 @@
 # Scripting App Command-Line Tool
 
-Welcome to the `scripting-cli`, the command-line tool designed for integrating with the Scripting app. This tool allows you to synchronize and preview your scripts in real-time as you develop them using your favorite desktop editor, such as VSCode.
+Welcome to the `scripting-cli`, the command-line tool designed for integrating with the Scripting app. This tool allows you to synchronize and preview your scripts in real-time as you develop them using your favorite desktop editor (VSCode, Cursor, Windsurf, Zed, WebStorm, Vim, and more).
 
 [中文](./README_zh.md) | [日本語](./README_ja.md) | [Deutsch](./README_de.md) | [Français](./README_fr.md) | [Italiano](./README_it.md)
 
@@ -67,6 +67,79 @@ After connecting, select the script project you want to debug. The Scripting app
 
 As you write and save scripts using your desktop editor (e.g., VSCode), the changes will automatically sync with the Scripting app and be executed in real-time—making development and debugging much smoother.
 
+## Editor Selection and Config File
+
+`scripting-cli` is no longer tied to VSCode. The first time you run `npx scripting-cli start`, you'll be prompted to choose the editor you actually use. Your choice is saved to `scripting.config.json` in your project root so the prompt won't appear again.
+
+### Supported editors
+
+VSCode, VSCode Insiders, VSCodium, Cursor, Windsurf, Trae, Zed, WebStorm, IntelliJ IDEA, Fleet, Sublime Text, Nova, Vim, Neovim, Emacs, plus `custom` (any other command) and `none` (disable auto-open).
+
+Editors detected on your `PATH` are marked with ✓ and listed first.
+
+### Per-run override
+
+```bash
+# Use Cursor for this run only (does not modify scripting.config.json)
+npx scripting-cli start --editor=cursor
+
+# Re-run the interactive selection and overwrite the saved choice
+npx scripting-cli start --reconfigure
+```
+
+### Config file
+
+`scripting-cli` looks for the first config file it finds in this order:
+
+```
+scripting.config.ts
+scripting.config.mts
+scripting.config.cts
+scripting.config.js
+scripting.config.mjs
+scripting.config.cjs
+scripting.config.json
+```
+
+The default file is JSON so the npx flow stays zero-install. TypeScript and JavaScript files are loaded via [jiti](https://github.com/unjs/jiti).
+
+```jsonc
+// scripting.config.json
+{
+  "editor": "cursor",          // see supported editors above
+  "editorCommand": "cursor",   // optional, overrides the default command
+  "editorArgs": [],            // optional, extra CLI args
+  "port": 3000,
+  "autoOpen": true,
+  "generateTsConfig": true,    // set to false if you manage tsconfig.json yourself
+  "logLevel": "info"           // "silent" | "error" | "warn" | "info" | "debug"
+}
+```
+
+CLI flags take precedence over the config file.
+
+### Type completion (TypeScript config)
+
+To get autocomplete in `scripting.config.ts`, install scripting-cli as a dev dependency:
+
+```bash
+npm i -D scripting-cli
+```
+
+Then:
+
+```ts
+// scripting.config.ts
+import { defineConfig } from 'scripting-cli'
+
+export default defineConfig({
+  editor: 'cursor',
+  port: 4000,
+})
+```
+
+You can also use `.ts` without installing the package — `npx scripting-cli start` still loads it via `jiti`. You just won't get IDE type hints.
+
 ## Example Workflow
 
 1. Start the local service:
@@ -89,8 +162,9 @@ As you write and save scripts using your desktop editor (e.g., VSCode), the chan
   ```bash
   npx scripting-cli start --no-auto-open
   ```
+* Use `--editor=<key>` to override the configured editor for a single run, or `--reconfigure` to re-run the interactive editor selection.
 * To use the Bonjour service, ensure your system supports it. On Windows, you may need to install Bonjour manually. Then, use the `--bonjour` option to enable it.
-* This tool is ideal for users who prefer desktop editors like VSCode and want seamless code synchronization and debugging with the Scripting app.
+* This tool works with any desktop editor and provides seamless code synchronization and debugging with the Scripting app.
 
 ## Troubleshooting
 
