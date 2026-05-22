@@ -7,6 +7,7 @@ exports.startServer = startServer;
 const express_1 = __importDefault(require("express"));
 const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
+const os_1 = __importDefault(require("os"));
 const ip_1 = __importDefault(require("ip"));
 const bonjour_1 = __importDefault(require("bonjour"));
 const chalk_1 = __importDefault(require("chalk"));
@@ -18,6 +19,78 @@ const app = (0, express_1.default)();
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server);
 const bonjour = (0, bonjour_1.default)();
+// Keywords to identify VPN/virtual network adapters that should be excluded
+const VIRTUAL_ADAPTER_KEYWORDS = [
+    'virtual',
+    'vpn',
+    'vethernet',
+    'vmware',
+    'vmnet',
+    'vbox',
+    'virtualbox',
+    'docker',
+    'wsl',
+    'loopback',
+    'hamachi',
+    'tunngle',
+    'cloudflare',
+    'warp',
+    'tailscale',
+    'zerotier'
+];
+// Preferred adapter names for real network interfaces
+const PREFERRED_ADAPTER_KEYWORDS = [
+    'ethernet',
+    'eth',
+    'wi-fi',
+    'wifi',
+    'wlan',
+    'en0',
+    'en1'
+];
+/**
+ * Get the local network IP address, filtering out VPN and virtual adapters.
+ * Prioritizes real network adapters (Ethernet, Wi-Fi) over virtual ones.
+ */
+function getLocalNetworkIP() {
+    const interfaces = os_1.default.networkInterfaces();
+    const results = [];
+    for (const [name, addrs] of Object.entries(interfaces)) {
+        if (!addrs)
+            continue;
+        const lowerName = name.toLowerCase();
+        // Skip virtual/VPN adapters
+        if (VIRTUAL_ADAPTER_KEYWORDS.some(keyword => lowerName.includes(keyword))) {
+            continue;
+        }
+        for (const addr of addrs) {
+            // Only consider non-internal IPv4 addresses
+            if (addr.family === 'IPv4' && !addr.internal) {
+                // Skip certain IP ranges typically used by VPNs
+                // 198.18.0.0/15 is reserved for network benchmark testing (Cloudflare WARP uses this)
+                // 100.64.0.0/10 is Carrier-grade NAT (Tailscale uses this)
+                const ip = addr.address;
+                const firstOctet = parseInt(ip.split('.')[0], 10);
+                const secondOctet = parseInt(ip.split('.')[1], 10);
+                if (firstOctet === 198 && (secondOctet === 18 || secondOctet === 19)) {
+                    continue; // Skip 198.18.0.0/15
+                }
+                if (firstOctet === 100 && secondOctet >= 64 && secondOctet <= 127) {
+                    continue; // Skip 100.64.0.0/10
+                }
+                // Determine priority (lower is better)
+                let priority = 10;
+                if (PREFERRED_ADAPTER_KEYWORDS.some(keyword => lowerName.includes(keyword))) {
+                    priority = 1;
+                }
+                results.push({ name, address: ip, priority });
+            }
+        }
+    }
+    // Sort by priority and return the best match
+    results.sort((a, b) => a.priority - b.priority);
+    return results.length > 0 ? results[0].address : null;
+}
 function startServer({ port, noAutoOpen, startBonjourService }) {
     // console.log("port", port, "noAutoOpen", noAutoOpen);
     const PORT = port ?? 3000;
@@ -31,7 +104,7 @@ function startServer({ port, noAutoOpen, startBonjourService }) {
         (0, util_1.createVSCodeSettings)(); // Create vscode settings.json when the server starts
         (0, util_1.ensureScriptsDirectory)(); // Ensure the scripts directory exists
         // await migrateOldFiles(); // Migrate old files to the scripts directory
-        const ipAddress = ip_1.default.address();
+        const ipAddress = getLocalNetworkIP() ?? ip_1.default.address();
         const address = `http://${ipAddress}:${PORT}`;
         if (startBonjourService) {
             console.log(`Server listening on ${chalk_1.default.bold.blue(address)}\n\n${chalk_1.default.yellow('You can select this server in the Scripting app to connect')}.\n`);
