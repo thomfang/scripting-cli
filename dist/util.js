@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.md5 = md5;
+exports.isTextScriptFile = isTextScriptFile;
 exports.getPath = getPath;
 exports.getScriptPath = getScriptPath;
 exports.createTsConfig = createTsConfig;
@@ -17,11 +18,24 @@ const crypto_1 = __importDefault(require("crypto"));
 const fs_1 = __importDefault(require("fs"));
 const chalk_1 = __importDefault(require("chalk"));
 const const_1 = require("./const");
+const textScriptFileExtensions = new Set([
+    '.js',
+    '.jsx',
+    '.ts',
+    '.tsx',
+    '.json',
+    '.md',
+    '.txt',
+    '.py',
+]);
 function md5(content) {
     return crypto_1.default
         .createHash('md5')
         .update(content)
         .digest('hex');
+}
+function isTextScriptFile(filePath) {
+    return textScriptFileExtensions.has(path_1.default.extname(filePath).toLowerCase());
 }
 function getPath(filename) {
     return path_1.default.join(process.cwd(), filename);

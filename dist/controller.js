@@ -57,7 +57,7 @@ class Controller {
             persistent: true,
         });
         const updateHandler = (filePath) => {
-            if (filePath.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+            if ((0, util_1.isTextScriptFile)(filePath)) {
                 // send file content md5 hash to client
                 // const content = fs.readFileSync(filePath, 'utf-8');
                 fs_1.default.readFile(filePath, 'utf-8', (err, content) => {
@@ -180,11 +180,11 @@ class Controller {
                     if (file.name.startsWith('.git') || file.name.startsWith('.vscode')) {
                         return;
                     }
-                    // only read js, jsx, ts, tsx, json, md, txt files
+                    // Text files are synced inline; other file types are fetched on demand.
                     if (file.isFile()) {
                         const filePath = path_1.default.join(dir, file.name);
                         const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
-                        if (file.name.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+                        if ((0, util_1.isTextScriptFile)(filePath)) {
                             const content = await fs_1.default.promises.readFile(filePath, 'utf-8').catch((err) => {
                                 console.log(chalk_1.default.red(`Error reading file: ${err}`));
                             });

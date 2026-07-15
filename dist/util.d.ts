@@ -1,4 +1,5 @@
 export declare function md5(content: string): string;
+export declare function isTextScriptFile(filePath: string): boolean;
 export declare function getPath(filename: string): string;
 export declare function getScriptPath(filename?: string): string;
 export declare function createTsConfig(): void;

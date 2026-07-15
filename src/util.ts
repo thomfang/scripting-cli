@@ -4,11 +4,26 @@ import fs from 'fs';
 import chalk from 'chalk';
 import { globalDtsFileName, scriptingDtsFileName } from './const';
 
+const textScriptFileExtensions = new Set([
+  '.js',
+  '.jsx',
+  '.ts',
+  '.tsx',
+  '.json',
+  '.md',
+  '.txt',
+  '.py',
+]);
+
 export function md5(content: string): string {
   return crypto
     .createHash('md5')
     .update(content)
     .digest('hex');
+}
+
+export function isTextScriptFile(filePath: string): boolean {
+  return textScriptFileExtensions.has(path.extname(filePath).toLowerCase());
 }
 
 export function getPath(filename: string) {

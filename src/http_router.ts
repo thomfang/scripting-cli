@@ -153,7 +153,8 @@ const syncScriptFromServer: express.RequestHandler = (req, res) => {
       return;
     }
     res.json({
-      scriptFiles: result.scriptFiles
+      scriptFiles: result.scriptFiles,
+      otherFiles: result.otherFiles,
     });
   })
 };

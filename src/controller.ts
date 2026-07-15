@@ -1,7 +1,7 @@
 
 import chokidar, { FSWatcher } from 'chokidar';
 import { Socket } from 'socket.io';
-import { ensureDirectoryExistence, getRelativePath, getScriptPath, md5, writeDtsFiles } from './util';
+import { ensureDirectoryExistence, getRelativePath, getScriptPath, isTextScriptFile, md5, writeDtsFiles } from './util';
 import fs from 'fs';
 import chalk from 'chalk';
 import path from 'path';
@@ -73,7 +73,7 @@ export class Controller {
     });
 
     const updateHandler = (filePath: string) => {
-      if (filePath.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+      if (isTextScriptFile(filePath)) {
         // send file content md5 hash to client
         // const content = fs.readFileSync(filePath, 'utf-8');
         fs.readFile(filePath, 'utf-8', (err, content) => {
@@ -248,12 +248,12 @@ export class Controller {
               return;
             }
 
-            // only read js, jsx, ts, tsx, json, md, txt files
+            // Text files are synced inline; other file types are fetched on demand.
             if (file.isFile()) {
               const filePath = path.join(dir, file.name);
               const relativePath = getRelativePath(scriptDir, filePath);
 
-              if (file.name.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+              if (isTextScriptFile(filePath)) {
                 const content = await fs.promises.readFile(filePath, 'utf-8').catch((err) => {
                   console.log(chalk.red(`Error reading file: ${err}`));
                 });
