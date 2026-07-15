@@ -29,6 +29,7 @@ const DEFAULTS = {
     autoOpen: true,
     generateTsConfig: true,
     logLevel: 'info',
+    ignore: [],
 };
 function findConfigFile(cwd = process.cwd()) {
     for (const name of CONFIG_FILENAMES) {
@@ -78,6 +79,7 @@ function mergeConfig(base, override) {
         autoOpen: override.autoOpen ?? base.autoOpen,
         generateTsConfig: override.generateTsConfig ?? base.generateTsConfig,
         logLevel: override.logLevel ?? base.logLevel,
+        ignore: override.ignore ?? base.ignore,
     };
 }
 function resolveDefaults(config) {
@@ -89,6 +91,7 @@ function resolveDefaults(config) {
         autoOpen: config.autoOpen ?? DEFAULTS.autoOpen,
         generateTsConfig: config.generateTsConfig ?? DEFAULTS.generateTsConfig,
         logLevel: config.logLevel ?? DEFAULTS.logLevel,
+        ignore: config.ignore ?? DEFAULTS.ignore,
     };
 }
 async function resolveConfig(opts) {

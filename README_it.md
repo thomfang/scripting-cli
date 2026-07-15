@@ -112,11 +112,39 @@ Il file predefinito è JSON, in modo che il flusso npx rimanga a zero installazi
   "port": 3000,
   "autoOpen": true,
   "generateTsConfig": true,    // imposta a false se gestisci tsconfig.json autonomamente
-  "logLevel": "info"           // "silent" | "error" | "warn" | "info" | "debug"
+  "logLevel": "info",          // "silent" | "error" | "warn" | "info" | "debug"
+  "ignore": ["*.log", "dist", "assets/large.mp4"]  // file aggiuntivi da escludere dalla sincronizzazione
 }
 ```
 
 I flag della CLI hanno la precedenza sul file di configurazione.
+
+### Escludere file dalla sincronizzazione (`ignore`)
+
+La sincronizzazione copre **tutti** i file in una directory di script — il codice sorgente,
+oltre a immagini, font e qualsiasi altro asset — in entrambe le direzioni (app ⇄ desktop).
+I file di testo si sincronizzano con il tracciamento delle modifiche; tutto il resto viene trasferito come byte grezzi.
+
+I file/directory che iniziano con un punto (come `.git`, `.vscode`, `.DS_Store`) e `node_modules`
+sono **sempre esclusi per impostazione predefinita**. Usa `ignore` per escludere altri file:
+
+```jsonc
+{
+  "ignore": [
+    "*.log",            // glob di estensione — corrisponde a qualsiasi file che termina con .log
+    "dist",             // nome — corrisponde a qualsiasi file o directory chiamato "dist" a qualsiasi livello
+    "assets/big.mp4"    // percorso — corrisponde a questo file relativo alla radice dello script
+  ]
+}
+```
+
+Ogni voce viene confrontata secondo una di tre forme:
+
+- `*.ext` — corrisponde ai file per estensione.
+- un nome semplice (senza `/`) — corrisponde a qualsiasi segmento di percorso (file o directory) con quel nome.
+- un percorso contenente `/` — corrisponde a quel percorso relativo allo script (esatto o come prefisso di directory).
+
+`ignore` si applica a entrambe le direzioni di sincronizzazione.
 
 ### Completamento dei tipi (configurazione TypeScript)
 

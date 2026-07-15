@@ -50,6 +50,14 @@ export declare class Controller {
         error?: string;
         content?: string;
     }) => void) => Promise<void>;
+    handlePutFileData: (data: {
+        scriptName: string;
+        relativePath: string;
+        data: Buffer;
+    }, ack: (result: {
+        error?: string;
+        success?: boolean;
+    }) => void) => Promise<void>;
     handleGetFilePath: (data: {
         scriptName: string;
         relativePath: string;

@@ -11,6 +11,65 @@ export function md5(content: string): string {
     .digest('hex');
 }
 
+// Drop an incomplete trailing UTF-8 multibyte sequence so a text file whose
+// character happens to straddle the read boundary isn't misjudged as binary.
+function trimIncompleteUtf8Tail(chunk: Buffer): Buffer {
+  let i = chunk.length - 1;
+  let cont = 0;
+  // Walk back over continuation bytes (10xxxxxx).
+  while (i >= 0 && (chunk[i] & 0xc0) === 0x80) {
+    cont++;
+    i--;
+  }
+  if (i < 0) return chunk;
+
+  const lead = chunk[i];
+  let seqLen: number;
+  if ((lead & 0x80) === 0x00) seqLen = 1;      // ASCII
+  else if ((lead & 0xe0) === 0xc0) seqLen = 2;
+  else if ((lead & 0xf0) === 0xe0) seqLen = 3;
+  else if ((lead & 0xf8) === 0xf0) seqLen = 4;
+  else return chunk;                            // invalid lead — let the decoder flag it
+
+  // Fewer bytes than the sequence needs → it's cut off; trim it.
+  if (cont + 1 < seqLen) {
+    return chunk.subarray(0, i);
+  }
+  return chunk;
+}
+
+// Detect whether a file is binary by content instead of extension.
+// Reads the first 1024 bytes: a NUL byte or non-UTF-8 content means binary.
+// Conceptually mirrors FileManagerService.isBinaryFileSync on the iOS side.
+export function isBinaryFile(filePath: string): boolean {
+  let fd: number | null = null;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(1024);
+    const bytesRead = fs.readSync(fd, buffer, 0, 1024, 0);
+    const chunk = buffer.subarray(0, bytesRead);
+
+    if (chunk.includes(0)) {
+      return true;
+    }
+
+    try {
+      new TextDecoder('utf-8', { fatal: true }).decode(trimIncompleteUtf8Tail(chunk));
+      return false;
+    } catch {
+      return true;
+    }
+  } catch (err) {
+    console.log(chalk.red(`Failed to inspect file: ${filePath}, ${err}`));
+    // On failure, fall back to treating it as text (previous default behavior).
+    return false;
+  } finally {
+    if (fd != null) {
+      fs.closeSync(fd);
+    }
+  }
+}
+
 export function getPath(filename: string) {
   return path.join(process.cwd(), filename);
 }
@@ -111,6 +170,42 @@ export async function writeDtsFiles(files: Record<string, string>) {
 export function getRelativePath(from: string, to: string) {
   const relativePath = path.relative(from, to);
   return relativePath.replaceAll("\\", "/");
+}
+
+// Whether a script-relative path should be excluded from syncing.
+// Always ignores dotfiles/dot-directories and node_modules; `patterns` adds
+// user-configured excludes. Kept in sync with the iOS default ignore logic.
+export function isIgnoredPath(relativePath: string, patterns: string[] = []): boolean {
+  const normalized = relativePath.replaceAll("\\", "/");
+  const segments = normalized.split("/").filter(Boolean);
+
+  // Default ignores.
+  for (const seg of segments) {
+    if (seg.startsWith(".") || seg === "node_modules") {
+      return true;
+    }
+  }
+
+  // User-configured patterns.
+  const basename = segments[segments.length - 1] ?? "";
+  for (const raw of patterns) {
+    const pattern = raw.trim();
+    if (!pattern) continue;
+
+    if (pattern.startsWith("*.")) {
+      // Extension match, e.g. "*.log".
+      if (basename.endsWith(pattern.slice(1))) return true;
+    } else if (pattern.includes("/")) {
+      // Path match (relative), prefix or exact.
+      const p = pattern.replace(/^\/+|\/+$/g, "");
+      if (normalized === p || normalized.startsWith(p + "/")) return true;
+    } else {
+      // Directory or file name match on any segment.
+      if (segments.includes(pattern)) return true;
+    }
+  }
+
+  return false;
 }
 
 export async function migrateOldFiles() {

@@ -26,6 +26,7 @@ const DEFAULTS: Required<Omit<ScriptingConfig, 'editorCommand' | 'editorArgs' | 
   autoOpen: true,
   generateTsConfig: true,
   logLevel: 'info',
+  ignore: [],
 };
 
 export function findConfigFile(cwd: string = process.cwd()): string | null {
@@ -77,6 +78,7 @@ function mergeConfig(base: ScriptingConfig, override: ScriptingConfig): Scriptin
     autoOpen: override.autoOpen ?? base.autoOpen,
     generateTsConfig: override.generateTsConfig ?? base.generateTsConfig,
     logLevel: override.logLevel ?? base.logLevel,
+    ignore: override.ignore ?? base.ignore,
   };
 }
 
@@ -89,6 +91,7 @@ function resolveDefaults(config: ScriptingConfig): ResolvedConfig {
     autoOpen: config.autoOpen ?? DEFAULTS.autoOpen,
     generateTsConfig: config.generateTsConfig ?? DEFAULTS.generateTsConfig,
     logLevel: config.logLevel ?? DEFAULTS.logLevel,
+    ignore: config.ignore ?? DEFAULTS.ignore,
   };
 }
 

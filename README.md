@@ -112,11 +112,39 @@ The default file is JSON so the npx flow stays zero-install. TypeScript and Java
   "port": 3000,
   "autoOpen": true,
   "generateTsConfig": true,    // set to false if you manage tsconfig.json yourself
-  "logLevel": "info"           // "silent" | "error" | "warn" | "info" | "debug"
+  "logLevel": "info",          // "silent" | "error" | "warn" | "info" | "debug"
+  "ignore": ["*.log", "dist", "assets/large.mp4"]  // extra paths to exclude from sync
 }
 ```
 
 CLI flags take precedence over the config file.
+
+### Excluding files from sync (`ignore`)
+
+Synchronization covers **all** files in a script directory — source code, plus
+images, fonts, and any other assets — in both directions (app ⇄ desktop).
+Text files sync with change tracking; everything else is transferred as raw bytes.
+
+Dotfiles/dot-directories (such as `.git`, `.vscode`, `.DS_Store`) and `node_modules`
+are **always excluded** by default. Use `ignore` to exclude additional files:
+
+```jsonc
+{
+  "ignore": [
+    "*.log",            // extension glob — matches any file ending in .log
+    "dist",             // name — matches any file or directory named "dist" at any depth
+    "assets/big.mp4"    // path — matches this file relative to the script root
+  ]
+}
+```
+
+Each entry is matched as one of three forms:
+
+- `*.ext` — matches files by extension.
+- a plain name (no `/`) — matches any path segment (file or directory) with that name.
+- a path containing `/` — matches that script-relative path (exact or as a directory prefix).
+
+`ignore` applies to both sync directions.
 
 ### Type completion (TypeScript config)
 

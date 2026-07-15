@@ -92,6 +92,57 @@ const getFileData: express.RequestHandler = (req, res) => {
   })
 }
 
+const putFileData: express.RequestHandler = (req, res) => {
+  const {
+    socketId,
+    scriptName,
+    relativePath,
+  } = req.query as {
+    scriptName: string;
+    socketId: string;
+    relativePath: string;
+  };
+
+  if (!scriptName || !relativePath) {
+    res.json({
+      error: "Missing parameters: scriptName or relativePath."
+    });
+    return;
+  }
+
+  if (!Buffer.isBuffer(req.body)) {
+    res.json({
+      error: "Missing file data in request body."
+    });
+    return;
+  }
+
+  const ctrl = Controller.get(socketId);
+  if (!ctrl) {
+    console.log(chalk.red(`Socket not found: ${socketId}`));
+    res.json({
+      error: "Socket not found."
+    });
+    return;
+  }
+
+  ctrl.handlePutFileData({
+    scriptName,
+    relativePath,
+    data: req.body,
+  }, (result) => {
+    if (result.error) {
+      res.json({
+        error: result.error
+      });
+      return;
+    }
+    res.json({
+      success: true
+    });
+  })
+};
+
 const syncScriptFromClient: express.RequestHandler = (req, res) => {
   const params = req.body as {
     socketId: string;
@@ -163,6 +214,7 @@ export function initHttpRouter(app: express.Express) {
   app.use(express.urlencoded({ extended: true }));
   app.get("/getFileContent", getFileContent);
   app.get("/getFileData", getFileData);
+  app.post("/putFileData", express.raw({ type: 'application/octet-stream', limit: '100mb' }), putFileData);
   app.post("/syncScriptFromClient", syncScriptFromClient);
   app.post("/syncScriptFromServer", syncScriptFromServer);
 }

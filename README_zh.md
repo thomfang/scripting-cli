@@ -112,11 +112,38 @@ scripting.config.json
   "port": 3000,
   "autoOpen": true,
   "generateTsConfig": true,    // 若您自行维护 tsconfig.json，可设为 false
-  "logLevel": "info"           // "silent" | "error" | "warn" | "info" | "debug"
+  "logLevel": "info",          // "silent" | "error" | "warn" | "info" | "debug"
+  "ignore": ["*.log", "dist", "assets/large.mp4"]  // 额外排除、不参与同步的文件
 }
 ```
 
 CLI 参数优先级高于配置文件。
+
+### 排除文件（`ignore`）
+
+同步会覆盖脚本目录下的**所有**文件——源代码，以及图片、字体等任意资源——且为双向（App ⇄ 桌面）。
+文本文件带变更追踪同步，其余文件以原始字节传输。
+
+点文件 / 点目录（如 `.git`、`.vscode`、`.DS_Store`）与 `node_modules` **默认始终排除**。
+通过 `ignore` 可排除更多文件：
+
+```jsonc
+{
+  "ignore": [
+    "*.log",            // 扩展名通配 —— 匹配任意以 .log 结尾的文件
+    "dist",             // 名称 —— 匹配任意层级下名为 "dist" 的文件或目录
+    "assets/big.mp4"    // 路径 —— 匹配相对脚本根目录的该文件
+  ]
+}
+```
+
+每一项按以下三种形式之一匹配：
+
+- `*.ext` —— 按扩展名匹配文件。
+- 纯名称（不含 `/`）—— 匹配任意路径段（文件或目录）为该名称。
+- 含 `/` 的路径 —— 匹配该脚本相对路径（精确匹配或作为目录前缀）。
+
+`ignore` 对两个同步方向均生效。
 
 ### 类型补全（TypeScript 配置）
 

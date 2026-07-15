@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.md5 = md5;
+exports.isBinaryFile = isBinaryFile;
 exports.getPath = getPath;
 exports.getScriptPath = getScriptPath;
 exports.createTsConfig = createTsConfig;
@@ -11,6 +12,7 @@ exports.ensureScriptsDirectory = ensureScriptsDirectory;
 exports.ensureDirectoryExistence = ensureDirectoryExistence;
 exports.writeDtsFiles = writeDtsFiles;
 exports.getRelativePath = getRelativePath;
+exports.isIgnoredPath = isIgnoredPath;
 exports.migrateOldFiles = migrateOldFiles;
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -22,6 +24,68 @@ function md5(content) {
         .createHash('md5')
         .update(content)
         .digest('hex');
+}
+// Drop an incomplete trailing UTF-8 multibyte sequence so a text file whose
+// character happens to straddle the read boundary isn't misjudged as binary.
+function trimIncompleteUtf8Tail(chunk) {
+    let i = chunk.length - 1;
+    let cont = 0;
+    // Walk back over continuation bytes (10xxxxxx).
+    while (i >= 0 && (chunk[i] & 0xc0) === 0x80) {
+        cont++;
+        i--;
+    }
+    if (i < 0)
+        return chunk;
+    const lead = chunk[i];
+    let seqLen;
+    if ((lead & 0x80) === 0x00)
+        seqLen = 1; // ASCII
+    else if ((lead & 0xe0) === 0xc0)
+        seqLen = 2;
+    else if ((lead & 0xf0) === 0xe0)
+        seqLen = 3;
+    else if ((lead & 0xf8) === 0xf0)
+        seqLen = 4;
+    else
+        return chunk; // invalid lead — let the decoder flag it
+    // Fewer bytes than the sequence needs → it's cut off; trim it.
+    if (cont + 1 < seqLen) {
+        return chunk.subarray(0, i);
+    }
+    return chunk;
+}
+// Detect whether a file is binary by content instead of extension.
+// Reads the first 1024 bytes: a NUL byte or non-UTF-8 content means binary.
+// Conceptually mirrors FileManagerService.isBinaryFileSync on the iOS side.
+function isBinaryFile(filePath) {
+    let fd = null;
+    try {
+        fd = fs_1.default.openSync(filePath, 'r');
+        const buffer = Buffer.alloc(1024);
+        const bytesRead = fs_1.default.readSync(fd, buffer, 0, 1024, 0);
+        const chunk = buffer.subarray(0, bytesRead);
+        if (chunk.includes(0)) {
+            return true;
+        }
+        try {
+            new TextDecoder('utf-8', { fatal: true }).decode(trimIncompleteUtf8Tail(chunk));
+            return false;
+        }
+        catch {
+            return true;
+        }
+    }
+    catch (err) {
+        console.log(chalk_1.default.red(`Failed to inspect file: ${filePath}, ${err}`));
+        // On failure, fall back to treating it as text (previous default behavior).
+        return false;
+    }
+    finally {
+        if (fd != null) {
+            fs_1.default.closeSync(fd);
+        }
+    }
 }
 function getPath(filename) {
     return path_1.default.join(process.cwd(), filename);
@@ -115,6 +179,43 @@ async function writeDtsFiles(files) {
 function getRelativePath(from, to) {
     const relativePath = path_1.default.relative(from, to);
     return relativePath.replaceAll("\\", "/");
+}
+// Whether a script-relative path should be excluded from syncing.
+// Always ignores dotfiles/dot-directories and node_modules; `patterns` adds
+// user-configured excludes. Kept in sync with the iOS default ignore logic.
+function isIgnoredPath(relativePath, patterns = []) {
+    const normalized = relativePath.replaceAll("\\", "/");
+    const segments = normalized.split("/").filter(Boolean);
+    // Default ignores.
+    for (const seg of segments) {
+        if (seg.startsWith(".") || seg === "node_modules") {
+            return true;
+        }
+    }
+    // User-configured patterns.
+    const basename = segments[segments.length - 1] ?? "";
+    for (const raw of patterns) {
+        const pattern = raw.trim();
+        if (!pattern)
+            continue;
+        if (pattern.startsWith("*.")) {
+            // Extension match, e.g. "*.log".
+            if (basename.endsWith(pattern.slice(1)))
+                return true;
+        }
+        else if (pattern.includes("/")) {
+            // Path match (relative), prefix or exact.
+            const p = pattern.replace(/^\/+|\/+$/g, "");
+            if (normalized === p || normalized.startsWith(p + "/"))
+                return true;
+        }
+        else {
+            // Directory or file name match on any segment.
+            if (segments.includes(pattern))
+                return true;
+        }
+    }
+    return false;
 }
 async function migrateOldFiles() {
     try {

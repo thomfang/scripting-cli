@@ -112,11 +112,39 @@ Die Standarddatei ist JSON, damit der npx-Ablauf installationsfrei bleibt. TypeS
   "port": 3000,
   "autoOpen": true,
   "generateTsConfig": true,    // auf false setzen, wenn Sie tsconfig.json selbst verwalten
-  "logLevel": "info"           // "silent" | "error" | "warn" | "info" | "debug"
+  "logLevel": "info",          // "silent" | "error" | "warn" | "info" | "debug"
+  "ignore": ["*.log", "dist", "assets/large.mp4"]  // zusätzlich von der Synchronisierung ausgeschlossene Dateien
 }
 ```
 
 CLI-Flags haben Vorrang vor der Konfigurationsdatei.
+
+### Dateien von der Synchronisierung ausschließen (`ignore`)
+
+Die Synchronisierung umfasst **alle** Dateien in einem Skriptverzeichnis – Quellcode
+sowie Bilder, Schriftarten und beliebige andere Assets – in beide Richtungen (App ⇄ Desktop).
+Textdateien werden mit Änderungsverfolgung synchronisiert, alles andere wird als Rohbytes übertragen.
+
+Dot-Dateien/Dot-Verzeichnisse (wie `.git`, `.vscode`, `.DS_Store`) und `node_modules`
+werden **standardmäßig immer ausgeschlossen**. Mit `ignore` schließen Sie weitere Dateien aus:
+
+```jsonc
+{
+  "ignore": [
+    "*.log",            // Erweiterungs-Glob – passt auf jede Datei, die auf .log endet
+    "dist",             // Name – passt auf jede Datei oder jedes Verzeichnis namens "dist" auf jeder Ebene
+    "assets/big.mp4"    // Pfad – passt auf diese Datei relativ zum Skript-Stammverzeichnis
+  ]
+}
+```
+
+Jeder Eintrag wird als eine von drei Formen abgeglichen:
+
+- `*.ext` – passt auf Dateien nach Erweiterung.
+- ein einfacher Name (ohne `/`) – passt auf jedes Pfadsegment (Datei oder Verzeichnis) mit diesem Namen.
+- ein Pfad mit `/` – passt auf diesen skriptrelativen Pfad (exakt oder als Verzeichnispräfix).
+
+`ignore` gilt für beide Synchronisierungsrichtungen.
 
 ### Typvervollständigung (TypeScript-Konfiguration)
 

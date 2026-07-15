@@ -53,11 +53,11 @@ class Controller {
     createWatcher(scriptName) {
         const scriptDir = (0, util_1.getScriptPath)(scriptName);
         this.watcher = chokidar_1.default.watch(scriptDir, {
-            ignored: /(^|[\/\\])\../,
+            ignored: (filePath) => (0, util_1.isIgnoredPath)((0, util_1.getRelativePath)(scriptDir, filePath), this.config.ignore),
             persistent: true,
         });
         const updateHandler = (filePath) => {
-            if (filePath.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+            if (!(0, util_1.isBinaryFile)(filePath)) {
                 // send file content md5 hash to client
                 // const content = fs.readFileSync(filePath, 'utf-8');
                 fs_1.default.readFile(filePath, 'utf-8', (err, content) => {
@@ -121,6 +121,9 @@ class Controller {
             const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
             (0, util_1.ensureDirectoryExistence)(scriptDir);
             await Promise.all(Object.entries(data.scriptFiles).map(async ([filename, content]) => {
+                if ((0, util_1.isIgnoredPath)(filename, this.config.ignore)) {
+                    return;
+                }
                 const filePath = path_1.default.join(scriptDir, filename);
                 (0, util_1.ensureDirectoryExistence)(filePath);
                 await fs_1.default.promises.writeFile(filePath, content);
@@ -176,15 +179,15 @@ class Controller {
             const readDir = async (dir) => {
                 const files = await fs_1.default.promises.readdir(dir, { withFileTypes: true });
                 await Promise.all(files.map(async (file) => {
-                    // ignore .git and .vscode directories
-                    if (file.name.startsWith('.git') || file.name.startsWith('.vscode')) {
+                    const filePath = path_1.default.join(dir, file.name);
+                    const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
+                    // Skip default-ignored (dotfiles, node_modules) and user-configured paths.
+                    if ((0, util_1.isIgnoredPath)(relativePath, this.config.ignore)) {
                         return;
                     }
-                    // only read js, jsx, ts, tsx, json, md, txt files
+                    // Classify by content: text files sync with hash, others as binary.
                     if (file.isFile()) {
-                        const filePath = path_1.default.join(dir, file.name);
-                        const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
-                        if (file.name.match(/\.(js(x)?|ts(x)?|json|md|txt)$/)) {
+                        if (!(0, util_1.isBinaryFile)(filePath)) {
                             const content = await fs_1.default.promises.readFile(filePath, 'utf-8').catch((err) => {
                                 console.log(chalk_1.default.red(`Error reading file: ${err}`));
                             });
@@ -271,6 +274,45 @@ class Controller {
         catch (e) {
             ack({
                 error: `Failed to get file content.\n${e}`,
+            });
+        }
+    };
+    handlePutFileData = async (data, ack) => {
+        if (this.scriptName !== data.scriptName) {
+            ack({
+                error: `Script ${data.scriptName} is not initialized`,
+            });
+            return;
+        }
+        if ((0, util_1.isIgnoredPath)(data.relativePath, this.config.ignore)) {
+            ack({
+                error: `Ignored file path: ${data.relativePath}`,
+            });
+            return;
+        }
+        const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
+        const filePath = path_1.default.join(scriptDir, data.relativePath);
+        // Prevent path traversal: the resolved path must stay inside scriptDir.
+        const resolved = path_1.default.resolve(filePath);
+        if (resolved !== path_1.default.resolve(scriptDir) &&
+            !resolved.startsWith(path_1.default.resolve(scriptDir) + path_1.default.sep)) {
+            ack({
+                error: `Invalid file path: ${data.relativePath}`,
+            });
+            return;
+        }
+        try {
+            (0, util_1.ensureDirectoryExistence)(filePath);
+            await fs_1.default.promises.writeFile(filePath, data.data);
+            console.log(`[${chalk_1.default.bold.blue(data.scriptName)}] File uploaded: ${data.relativePath}`);
+            ack({
+                success: true,
+            });
+        }
+        catch (e) {
+            console.log(chalk_1.default.red(`Error writing uploaded file: ${e}`));
+            ack({
+                error: `Failed to write uploaded file.\n${e}`,
             });
         }
     };

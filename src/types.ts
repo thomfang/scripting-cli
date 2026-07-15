@@ -27,6 +27,8 @@ export interface ScriptingConfig {
   autoOpen?: boolean;
   generateTsConfig?: boolean;
   logLevel?: LogLevel;
+  /** Extra script-relative paths, directory/file names, or `*.ext` globs to exclude from syncing. */
+  ignore?: string[];
 }
 
 export type ResolvedConfig = Required<Omit<ScriptingConfig, 'editorCommand' | 'editorArgs'>> & {
