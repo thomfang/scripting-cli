@@ -116,6 +116,7 @@ class Controller {
             await (0, util_1.writeDtsFiles)({
                 [const_1.globalDtsFileName]: data[const_1.globalDtsFileName],
                 [const_1.scriptingDtsFileName]: data[const_1.scriptingDtsFileName],
+                ...(data.extraDtsFiles ?? {}),
             });
             this.scriptName = data.scriptName;
             const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
@@ -166,6 +167,7 @@ class Controller {
             await (0, util_1.writeDtsFiles)({
                 [const_1.globalDtsFileName]: data[const_1.globalDtsFileName],
                 [const_1.scriptingDtsFileName]: data[const_1.scriptingDtsFileName],
+                ...(data.extraDtsFiles ?? {}),
             });
             const scriptDir = (0, util_1.getScriptPath)(data.scriptName);
             if (!fs_1.default.existsSync(scriptDir)) {

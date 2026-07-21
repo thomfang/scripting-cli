@@ -126,6 +126,7 @@ export class Controller {
   handleSyncScriptFromClient = async (data: {
     [globalDtsFileName]: string,
     [scriptingDtsFileName]: string,
+    extraDtsFiles?: Record<string, string>,
     scriptName: string
     scriptFiles: Record<string, string>
   }, ack: (result: {
@@ -150,6 +151,7 @@ export class Controller {
       await writeDtsFiles({
         [globalDtsFileName]: data[globalDtsFileName],
         [scriptingDtsFileName]: data[scriptingDtsFileName],
+        ...(data.extraDtsFiles ?? {}),
       });
 
       this.scriptName = data.scriptName;
@@ -200,6 +202,7 @@ export class Controller {
   handleSyncScriptFromServer = async (data: {
     'global.d.ts': string,
     'scripting.d.ts': string,
+    extraDtsFiles?: Record<string, string>,
     scriptName: string,
   }, ack: (result: {
     error?: string,
@@ -225,6 +228,7 @@ export class Controller {
       await writeDtsFiles({
         [globalDtsFileName]: data[globalDtsFileName],
         [scriptingDtsFileName]: data[scriptingDtsFileName],
+        ...(data.extraDtsFiles ?? {}),
       });
 
       const scriptDir = getScriptPath(data.scriptName);

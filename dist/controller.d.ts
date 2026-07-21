@@ -15,6 +15,7 @@ export declare class Controller {
     handleSyncScriptFromClient: (data: {
         [globalDtsFileName]: string;
         [scriptingDtsFileName]: string;
+        extraDtsFiles?: Record<string, string>;
         scriptName: string;
         scriptFiles: Record<string, string>;
     }, ack: (result: {
@@ -24,6 +25,7 @@ export declare class Controller {
     handleSyncScriptFromServer: (data: {
         "global.d.ts": string;
         "scripting.d.ts": string;
+        extraDtsFiles?: Record<string, string>;
         scriptName: string;
     }, ack: (result: {
         error?: string;

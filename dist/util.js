@@ -123,8 +123,11 @@ function createTsConfig() {
     }
   },
   "include": [
-    "./dts/${const_1.globalDtsFileName}",
+    "./dts/*.d.ts",
     "scripts"
+  ],
+  "exclude": [
+    "./dts/${const_1.scriptingDtsFileName}"
   ]
 }`;
     const filePath = getPath('tsconfig.json');
@@ -132,20 +135,35 @@ function createTsConfig() {
     if (!fs_1.default.existsSync(filePath)) {
         fs_1.default.writeFileSync(filePath, tsconfigContent);
         console.log(chalk_1.default.green('tsconfig.json created.'));
+        return;
+    }
+    // Migrate an existing tsconfig to the current include/exclude shape:
+    // - all ambient dts are picked up via the "./dts/*.d.ts" glob (so newly synced
+    //   node.d.ts / web-fetch.d.ts / safari-ext.d.ts are covered automatically),
+    // - scripting.d.ts is excluded from the root program (it stays importable via
+    //   the "scripting" paths mapping). Existing custom entries are preserved.
+    const tsconfig = JSON.parse(fs_1.default.readFileSync(filePath, 'utf-8'));
+    const include = Array.isArray(tsconfig.include) ? [...tsconfig.include] : [];
+    const exclude = Array.isArray(tsconfig.exclude) ? [...tsconfig.exclude] : [];
+    // Drop the stale explicit global entry now covered by the glob.
+    let nextInclude = include.filter((x) => x !== `./dts/${const_1.globalDtsFileName}`);
+    if (!nextInclude.includes('./dts/*.d.ts'))
+        nextInclude.unshift('./dts/*.d.ts');
+    if (!nextInclude.includes('scripts'))
+        nextInclude.push('scripts');
+    const nextExclude = exclude.includes(`./dts/${const_1.scriptingDtsFileName}`)
+        ? exclude
+        : [...exclude, `./dts/${const_1.scriptingDtsFileName}`];
+    const includeChanged = JSON.stringify(nextInclude) !== JSON.stringify(include);
+    const excludeChanged = JSON.stringify(nextExclude) !== JSON.stringify(exclude);
+    if (includeChanged || excludeChanged) {
+        tsconfig.include = nextInclude;
+        tsconfig.exclude = nextExclude;
+        fs_1.default.writeFileSync(filePath, JSON.stringify(tsconfig, null, 2));
+        console.log(chalk_1.default.yellow('tsconfig.json updated to sync all ambient type declarations.'));
     }
     else {
-        const tsconfig = JSON.parse(fs_1.default.readFileSync(filePath, 'utf-8'));
-        if (tsconfig.include && !tsconfig.include.includes('scripts')) {
-            tsconfig.include = [
-                `./dts/${const_1.globalDtsFileName}`,
-                "scripts"
-            ];
-            fs_1.default.writeFileSync(filePath, JSON.stringify(tsconfig, null, 2));
-            console.log(chalk_1.default.yellow('tsconfig.json updated to include scripts directory.'));
-        }
-        else {
-            console.log(chalk_1.default.gray('tsconfig.json already exists.'));
-        }
+        console.log(chalk_1.default.gray('tsconfig.json already exists.'));
     }
 }
 function ensureScriptsDirectory() {
@@ -166,6 +184,14 @@ function ensureDirectoryExistence(filePath) {
 }
 async function writeDtsFiles(files) {
     await Promise.all(Object.entries(files).map(async ([filename, content]) => {
+        // These names arrive over the wire; only allow a plain `.d.ts` basename so
+        // a crafted name can't escape the dts/ directory.
+        if (typeof content !== 'string' ||
+            filename !== path_1.default.basename(filename) ||
+            !filename.endsWith('.d.ts')) {
+            console.log(chalk_1.default.red(`Skipped writing dts file with unexpected name: ${filename}`));
+            return;
+        }
         const filePath = getPath(`dts/${filename}`);
         ensureDirectoryExistence(filePath);
         await fs_1.default
