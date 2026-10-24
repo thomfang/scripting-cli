@@ -40,7 +40,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const yargs_1 = __importDefault(require("yargs/yargs"));
 const helpers_1 = require("yargs/helpers");
 const start_server_1 = require("./start_server");
-(0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
+const agent_cli_1 = require("./agent_cli");
+(0, agent_cli_1.installAgentCommands)((0, yargs_1.default)((0, helpers_1.hideBin)(process.argv)))
     .parserConfiguration({
     "boolean-negation": false
 })
@@ -84,7 +85,7 @@ const start_server_1 = require("./start_server");
         startBonjourService: argv.bonjour,
         editorOverride: argv.editor,
         reconfigure: argv.reconfigure,
-    });
+    }).catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exit(1); });
 })
     .command('migrate', 'Migrate the scripts in the workspace root directory to the scripts directory.', (yargs) => {
     return yargs
@@ -96,6 +97,15 @@ const start_server_1 = require("./start_server");
     const { migrateOldFiles } = await Promise.resolve().then(() => __importStar(require('./util')));
     await migrateOldFiles();
     process.exit(0);
+})
+    .strict()
+    .fail((message, error) => {
+    const detail = error?.message ?? message;
+    if (process.argv.includes('--json'))
+        console.log(JSON.stringify({ status: 'failed', error: { code: 'invalid_usage', message: detail } }));
+    else
+        console.error(detail);
+    process.exit(2);
 })
     .showHelpOnFail(true)
     .option('help', {

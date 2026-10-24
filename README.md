@@ -206,3 +206,103 @@ If you encounter issues:
 ---
 
 Enjoy using `scripting-cli` in your Scripting app development workflow. Happy coding!
+
+## Desktop agent commands
+
+Codex, Claude Code, and other desktop agents can query the connected App's docs,
+sync the current debug project, run it, and inspect results without a separate
+agent-specific plugin. These commands require a compatible Scripting App with
+Desktop Agent protocol v1 support. Older App versions can continue normal file
+syncing but do not support the new commands.
+
+1. Run `scripting-cli start` in your workspace.
+2. Connect Scripting to that server. Select a script and enter its debug page.
+3. The existing sync workflow creates `scripts/<project>/` in the workspace.
+4. Run the commands below from that same workspace. The first release only
+   operates on the App's currently selected debug project. It never creates or
+   switches App projects by guessing a directory name.
+
+```sh
+scripting-cli devices --json
+scripting-cli status --json
+scripting-cli docs search "Navigation" --json
+scripting-cli docs get navigation --lang zh --json  # use an ID returned by search
+scripting-cli api get Navigation.present --json
+scripting-cli run "MyScript" --json
+scripting-cli run "MyScript" --query-parameters '{"sample":true}' --json
+scripting-cli run "MyScript" --screenshot --capture-after 2 --output ./artifacts --json
+scripting-cli widget "MyScript" --family systemMedium --json
+scripting-cli widget "MyScript" --family systemMedium --parameter demo --screenshot --output ./artifacts --json
+scripting-cli jobs show <run-id> --json
+scripting-cli jobs cancel <run-id> --json
+```
+
+- With several connected devices, pass `--device <device-id>` from `devices`.
+  `devices` makes a fresh request and reports `responsive`; a connected socket
+  alone is not proof the App can execute a command. `status` includes foreground
+  state, the selected project, current revision, `activeRunId` and background-keeper state.
+- Docs and API declarations come from the connected App, with its version in
+  the response. Search returns IDs and summaries; `docs get` reads one document.
+  There is no silent offline fallback to older docs.
+- `run` and `widget` first capture a bounded source snapshot, sync all included
+  files, and wait for the App to acknowledge its SHA256 revision. Files changed
+  after the snapshot belong to a later update. Delayed notifications for the
+  already-applied snapshot do not cause an extra automatic run.
+- Ordinary `run` waits for `Script.exit(result)` or failure. The default overall
+  deadline is 30 seconds (`--timeout`, 1–120). Forgetting to call `Script.exit`
+  can therefore produce a timeout. Request parameters retain the project's
+  normal App permission checks.
+- `run --screenshot` requires Scripting in the foreground. It waits for this
+  run's view, waits `--capture-after` seconds (0–10, default 2), captures the
+  view, and ends this run. Its result says `completionReason: preview_capture`;
+  this is a finite preview, not proof the script exited itself or that all
+  remote content finished loading. No rendered view means an explicit error,
+  not a successful blank image.
+- Both widget modes render the current project's `widget.tsx` in the App's
+  foreground preview and close automatically. Without `--screenshot`, no image
+  is generated. These commands do not install a home-screen widget or confirm
+  a WidgetKit timeline refresh. The supplied family/parameter do not overwrite
+  the user's normal preview preferences.
+- `--no-sync` explicitly uses the last acknowledged App revision; it fails if
+  the revision is unknown or later file updates invalidated it. Active manual
+  runs or previews return `busy`, and commands do not stop them automatically.
+- Ctrl-C requests cancellation of this command only. Cancellation, disconnect,
+  source failure, execution failure and screenshot failure remain distinct
+  results. A cancellation request stays `cancelling` until the App confirms a
+  terminal result; a missing confirmation is a failure, not proof execution stopped. Disconnected runs are not automatically replayed.
+
+With `--json`, stdout contains one JSON value (a device array for `devices`, or a
+job record for other commands). Jobs contain `runId`, `requestId`, `deviceId`,
+`sessionId`, `project`, `requestedRevision`, `revision`, `status`, and `result` or `error`. The requested revision and the App-applied revision are separate; failed
+preconditions do not claim that source was applied. Script
+values are in `result.value`, logs in `result.stdout` / `result.stderr`, and
+screenshots in `result.artifacts`. PNG files are copied to
+`<output>/<run-id>/screenshot.png`; base64 image data is never printed to stdout.
+Keep user-requested output files as long as needed. The private server retains
+at most 64 job records / 8 image results, expires results after 15 minutes, and
+removes its temporary results on shutdown.
+
+Exit codes: `0` success, `1` command failure, `2` invalid CLI usage, `124` execution
+or device timeout, `130` caller cancellation. Stable error codes include
+`device_ambiguous`, `project_mismatch`, `debug_session_required`, `busy`,
+`needs_foreground`, `sync_failed`, `missing_entry`, `screenshot_unavailable`, and
+`unsupported_capability`. Inspect the result instead of treating a successful
+connection or preview presentation as completed execution.
+
+Source snapshots include at most 8 MiB and 2000 regular files, using the existing
+ignore rules. Source symlinks and unsafe paths are rejected. Screenshots are
+bounded to 8 MiB and 16 megapixels. The App preserves excluded files and the
+script's permission identity. A separate authenticated loopback control server
+connects desktop commands to the running service; its credentials live in a
+private per-user OS temporary directory, not the project or command output.
+The existing App-facing LAN / Tailscale server remains available for file sync.
+
+### Tests
+
+`npm test` builds the existing TypeScript sources and runs the checked-in Node
+tests. It covers file/byte revisions, traversal and symlink refusals, device and
+session selection, duplicate IDs, cancellation, disconnects, local HTTP control
+boundaries, artifact delivery, retention, and actual CLI child processes. It
+uses only owned temporary fixtures and removes them afterward. Real App
+execution and screenshots also require App-side integration evidence; mocked
+peers do not substitute for device rendering.

@@ -6,6 +6,9 @@ export declare class Controller {
     private static instances;
     static create(socket: Socket, config: ResolvedConfig): Controller;
     static get(socketId: string): Controller | undefined;
+    private agentPauses;
+    private pendingAgentChanges;
+    private sendChange;
     watcher: FSWatcher | null;
     scriptName: string | null;
     socket: Socket | null;

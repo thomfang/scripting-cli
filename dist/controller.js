@@ -11,6 +11,8 @@ const chalk_1 = __importDefault(require("chalk"));
 const path_1 = __importDefault(require("path"));
 const const_1 = require("./const");
 const editors_1 = require("./editors");
+const agent_broker_1 = require("./agent_broker");
+const agent_protocol_1 = require("./agent_protocol");
 class Controller {
     static instances = new Map();
     static create(socket, config) {
@@ -21,6 +23,15 @@ class Controller {
     static get(socketId) {
         return Controller.instances.get(socketId);
     }
+    agentPauses = 0;
+    pendingAgentChanges = new Map();
+    sendChange(event, data) {
+        if (this.agentPauses) {
+            this.pendingAgentChanges.set(data.filePath, { event, data });
+            return;
+        }
+        this.socket?.emit(event, data);
+    }
     watcher = null;
     scriptName = null;
     socket = null;
@@ -28,6 +39,22 @@ class Controller {
     constructor(socket, config) {
         this.config = config;
         this.socket = socket;
+        agent_broker_1.agentBroker.register(socket, {
+            project: () => this.scriptName,
+            ignore: () => this.config.ignore,
+            pause: () => { this.agentPauses++; },
+            resume: snapshot => {
+                this.agentPauses = Math.max(0, this.agentPauses - 1);
+                if (!this.agentPauses) {
+                    for (const { event, data } of this.pendingAgentChanges.values()) {
+                        if (snapshot && this.scriptName && (0, agent_protocol_1.isAcknowledgedChange)(process.cwd(), this.scriptName, data.filePath, snapshot))
+                            continue;
+                        this.socket?.emit(event, data);
+                    }
+                    this.pendingAgentChanges.clear();
+                }
+            },
+        });
         socket.emit("socketId", socket.id);
         // socket.on('syncScriptFromClient', this.handleSyncScriptFromClient);
         // socket.on("syncScriptFromServer", this.handleSyncScriptFromClient);
@@ -68,7 +95,7 @@ class Controller {
                     const hash = (0, util_1.md5)(content);
                     const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
                     console.log(`[${chalk_1.default.bold.blue(scriptName)}] File changed: [${hash}]${relativePath}`);
-                    this.socket?.emit('fileChange', {
+                    this.sendChange('fileChange', {
                         scriptName,
                         filePath: relativePath,
                         hash,
@@ -79,7 +106,7 @@ class Controller {
                 // Other file types, just notify the client to reload the file
                 const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
                 console.log(`[${chalk_1.default.bold.blue(scriptName)}] File changed: ${relativePath}`);
-                this.socket?.emit('otherFileChange', {
+                this.sendChange('otherFileChange', {
                     scriptName,
                     filePath: relativePath,
                 });
@@ -87,7 +114,7 @@ class Controller {
         };
         const deleteHandler = (filePath) => {
             const relativePath = (0, util_1.getRelativePath)(scriptDir, filePath);
-            this.socket?.emit('deleteFile', {
+            this.sendChange('deleteFile', {
                 scriptName,
                 filePath: relativePath,
             });
@@ -102,6 +129,10 @@ class Controller {
     }
     handleSyncScriptFromClient = async (data, ack) => {
         try {
+            if (this.agentPauses) {
+                ack({ error: 'A desktop run is active.' });
+                return;
+            }
             if (data.scriptName === this.scriptName) {
                 ack({
                     error: `Script [${data.scriptName}] is already initialized`,
@@ -153,6 +184,10 @@ class Controller {
     };
     handleSyncScriptFromServer = async (data, ack) => {
         try {
+            if (this.agentPauses) {
+                ack({ error: 'A desktop run is active.' });
+                return;
+            }
             if (this.scriptName === data.scriptName) {
                 ack({
                     error: `Script ${data.scriptName} is already initialized`,

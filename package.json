@@ -21,7 +21,7 @@
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
     "help": "node dist/cli.js --help",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run build && node --test test/*.test.js"
   },
   "keywords": [
     "Scripting app",

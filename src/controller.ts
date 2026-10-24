@@ -8,6 +8,8 @@ import path from 'path';
 import { globalDtsFileName, scriptingDtsFileName } from './const';
 import { openFileInEditor } from './editors';
 import { ResolvedConfig } from './types';
+import { agentBroker } from './agent_broker';
+import { isAcknowledgedChange } from './agent_protocol';
 
 export class Controller {
 
@@ -23,6 +25,13 @@ export class Controller {
     return Controller.instances.get(socketId);
   }
 
+  private agentPauses = 0;
+  private pendingAgentChanges = new Map<string, { event: string; data: any }>();
+  private sendChange(event: string, data: any) {
+    if (this.agentPauses) { this.pendingAgentChanges.set(data.filePath, { event, data }); return; }
+    this.socket?.emit(event, data);
+  }
+
   watcher: FSWatcher | null = null;
   scriptName: string | null = null;
   socket: Socket | null = null;
@@ -32,6 +41,21 @@ export class Controller {
     this.config = config;
     this.socket = socket;
 
+    agentBroker.register(socket, {
+      project: () => this.scriptName,
+      ignore: () => this.config.ignore,
+      pause: () => { this.agentPauses++; },
+      resume: snapshot => {
+        this.agentPauses = Math.max(0, this.agentPauses - 1);
+        if (!this.agentPauses) {
+          for (const { event, data } of this.pendingAgentChanges.values()) {
+            if (snapshot && this.scriptName && isAcknowledgedChange(process.cwd(),this.scriptName,data.filePath,snapshot)) continue;
+            this.socket?.emit(event, data);
+          }
+          this.pendingAgentChanges.clear();
+        }
+      },
+    });
     socket.emit("socketId", socket.id);
 
     // socket.on('syncScriptFromClient', this.handleSyncScriptFromClient);
@@ -87,7 +111,7 @@ export class Controller {
           console.log(
             `[${chalk.bold.blue(scriptName)}] File changed: [${hash}]${relativePath}`
           )
-          this.socket?.emit('fileChange', {
+          this.sendChange('fileChange', {
             scriptName,
             filePath: relativePath,
             hash,
@@ -99,7 +123,7 @@ export class Controller {
         console.log(
           `[${chalk.bold.blue(scriptName)}] File changed: ${relativePath}`
         )
-        this.socket?.emit('otherFileChange', {
+        this.sendChange('otherFileChange', {
           scriptName,
           filePath: relativePath,
         });
@@ -108,7 +132,7 @@ export class Controller {
 
     const deleteHandler = (filePath: string) => {
       const relativePath = getRelativePath(scriptDir, filePath);
-      this.socket?.emit('deleteFile', {
+      this.sendChange('deleteFile', {
         scriptName,
         filePath: relativePath,
       });
@@ -135,6 +159,7 @@ export class Controller {
   }) => void) => {
 
     try {
+      if (this.agentPauses) { ack({ error: 'A desktop run is active.' }); return; }
       if (data.scriptName === this.scriptName) {
         ack({
           error: `Script [${data.scriptName}] is already initialized`,
@@ -213,6 +238,7 @@ export class Controller {
     otherFiles?: string[]
   }) => void) => {
     try {
+      if (this.agentPauses) { ack({ error: 'A desktop run is active.' }); return; }
       if (this.scriptName === data.scriptName) {
         ack({
           error: `Script ${data.scriptName} is already initialized`,

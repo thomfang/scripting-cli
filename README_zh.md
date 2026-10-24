@@ -205,3 +205,40 @@ export default defineConfig({
 ---
 
 祝您在 Scripting 应用的开发工作中使用 `scripting-cli` 顺利！编码愉快！
+
+
+## 桌面 Agent 命令
+
+Codex、Claude Code 等桌面 Agent 可通过当前开发连接查询 App 文档、同步项目、执行脚本和获取截图。需要支持 Desktop Agent 协议 v1 的 Scripting App；旧版 App 仍可使用原有文件同步。
+
+先在工作区运行 `scripting-cli start`，在 App 连接服务并选定脚本进入调试页。随后在同一工作区执行：
+
+```sh
+scripting-cli devices --json
+scripting-cli status --json
+scripting-cli docs search "Navigation" --json
+scripting-cli docs get <搜索返回的文档ID> --lang zh --json
+scripting-cli api get Navigation.present --json
+scripting-cli run "MyScript" --query-parameters '{"sample":true}' --json
+scripting-cli run "MyScript" --screenshot --capture-after 2 --output ./artifacts --json
+scripting-cli widget "MyScript" --family systemMedium --json
+scripting-cli widget "MyScript" --family systemMedium --parameter demo --screenshot --output ./artifacts --json
+scripting-cli jobs show <run-id> --json
+scripting-cli jobs cancel <run-id> --json
+```
+
+- 首版只操作 App 当前选中的调试项目，不会根据目录名称创建或切换项目。多设备时必须通过 `--device <设备ID>` 指定目标。`devices` 的 `responsive` 来自实际响应；`status` 返回前后台、项目、版本、`activeRunId` 和保活状态。
+- 文档和 API 声明来自连接中的 App，结果带 App 版本；不静默退回旧版离线资料。先搜索，再用返回的文档 ID 读取正文。
+- `run` 和 `widget` 先取得当前项目的完整源码快照，App 校验并应用后再执行。默认整体超时 30 秒，`--timeout` 可设置 1–120 秒。普通脚本应调用 `Script.exit(result)` 返回结果并结束；授权仍使用项目原有权限。
+- `run --screenshot` 需要 App 在前台。等待本次视图就绪后，再等待 `--capture-after` 秒（默认 2，范围 0–10），截图并结束本次运行，返回 `completionReason: preview_capture`。这不表示远程内容已全部加载。没有可捕获视图时明确失败，不返回空白成功图。
+- 两种 `widget` 命令都在前台渲染 `widget.tsx`，完成后自动收起。不带 `--screenshot` 时不生成图片。family 和 parameter 不覆盖平时预览偏好；结果不代表已安装系统桌面小组件或更新 WidgetKit 时间线。
+- `--no-sync` 仅使用 App 上次确认的源码版本；版本未知或被后续更新失效时拒绝执行。已有手动运行或预览返回 `busy`，不会自动停止用户脚本。
+- Ctrl-C 只请求取消本次命令。发送后保持 `cancelling`，收到 App 确认才变为 `cancelled`；缺少确认是失败，不表示已停止。断连不自动重放运行。
+
+`--json` 的 stdout 只有一个 JSON 值：`devices` 返回设备数组，其余返回任务记录。结果包含 runId、requestId、deviceId、sessionId、project、requestedRevision、revision、status 以及 result 或 error。requestedRevision 是桌面快照，revision 是 App 已应用版本，前置条件失败不会冒充已发布源码。脚本值在 `result.value`，日志在 `result.stdout` / `result.stderr`，截图在 `result.artifacts`；PNG 保存为 `<output>/<run-id>/screenshot.png`，不在终端打印 base64。
+
+退出码：0 成功，1 命令失败，2 参数用法错误，124 执行或设备超时，130 取消。常见错误包括 `device_ambiguous`、`project_mismatch`、`debug_session_required`、`busy`、`needs_foreground`、`sync_failed`、`missing_entry`、`screenshot_unavailable`、`unsupported_capability`。请以实际结果为准，不把连接成功或预览弹出视为执行完成。
+
+快照最多 8 MiB、2000 个普通文件，沿用 ignore 规则，拒绝符号链接和不安全路径；保留被排除文件和项目身份。截图最多 8 MiB、1600 万像素。单独的本机认证控制接口负责命令，凭据放在用户私有的系统临时目录中，不写入项目或终端。原局域网/Tailscale 文件同步端口保持可用。服务最多保留 64 项任务、8 项图片结果，15 分钟过期，退出时清理私有临时产物；用户输出目录由用户保留。
+
+`npm test` 构建 TypeScript 并运行仓库内 Node 测试，覆盖源码字节与版本、路径与符号链接拒绝、会话/项目/设备选择、重复请求、取消、断连、本机 HTTP 认证和产物交付。测试使用自有临时夹具并自动清理；模拟设备消息不能替代 App 实际执行和渲染验收。

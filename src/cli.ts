@@ -3,8 +3,9 @@
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import { startServer } from './start_server';
+import { installAgentCommands } from './agent_cli';
 
-yargs(hideBin(process.argv))
+installAgentCommands(yargs(hideBin(process.argv)))
   .parserConfiguration({
     "boolean-negation": false
   })
@@ -48,7 +49,7 @@ yargs(hideBin(process.argv))
       startBonjourService: argv.bonjour,
       editorOverride: argv.editor,
       reconfigure: argv.reconfigure,
-    });
+    }).catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exit(1); });
   })
   .command('migrate', 'Migrate the scripts in the workspace root directory to the scripts directory.', (yargs) => {
     return yargs
@@ -60,6 +61,13 @@ yargs(hideBin(process.argv))
     const { migrateOldFiles } = await import('./util');
     await migrateOldFiles();
     process.exit(0);
+  })
+  .strict()
+  .fail((message,error) => {
+    const detail=error?.message ?? message;
+    if (process.argv.includes('--json')) console.log(JSON.stringify({status:'failed',error:{code:'invalid_usage',message:detail}}));
+    else console.error(detail);
+    process.exit(2);
   })
   .showHelpOnFail(true)
   .option('help', {

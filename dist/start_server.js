@@ -14,13 +14,14 @@ const chalk_1 = __importDefault(require("chalk"));
 const qrcode_terminal_1 = __importDefault(require("qrcode-terminal"));
 const util_1 = require("./util");
 const controller_1 = require("./controller");
+const agent_broker_1 = require("./agent_broker");
+const agent_control_1 = require("./agent_control");
 const http_router_1 = require("./http_router");
 const config_1 = require("./config");
 const editors_1 = require("./editors");
 const app = (0, express_1.default)();
 const server = http_1.default.createServer(app);
-const io = new socket_io_1.Server(server);
-const bonjour = (0, bonjour_1.default)();
+const io = new socket_io_1.Server(server, { maxHttpBufferSize: 16 * 1024 * 1024 });
 // Keywords to identify VPN/virtual network adapters that should be excluded
 const VIRTUAL_ADAPTER_KEYWORDS = [
     'virtual',
@@ -101,6 +102,8 @@ async function startServer({ port, noAutoOpen, startBonjourService, editorOverri
         reconfigure,
     });
     const PORT = config.port;
+    const bonjour = startBonjourService ? (0, bonjour_1.default)() : undefined;
+    await (0, agent_control_1.startAgentControl)(agent_broker_1.agentBroker);
     const editor = (0, editors_1.getEditor)(config.editor);
     console.log(chalk_1.default.gray(`Editor: ${editor?.displayName ?? config.editor}`));
     (0, http_router_1.initHttpRouter)(app);
@@ -125,21 +128,22 @@ async function startServer({ port, noAutoOpen, startBonjourService, editorOverri
             console.log(`Server listening on ${chalk_1.default.bold.blue(address)}\nYou can ${chalk_1.default.green.bold("use the Scripting app to scan")} the QR code and connect: `);
         }
         qrcode_terminal_1.default.generate(address, { small: true });
-        if (startBonjourService) {
+        if (startBonjourService && bonjour) {
+            const publishedBonjour = bonjour;
             function gracefulShutdown() {
                 console.log('Shutting down Bonjour...');
                 service.stop(() => {
-                    bonjour.unpublishAll(() => {
+                    publishedBonjour.unpublishAll(() => {
                         // wait for 500ms，let goodbye message be sent completely
                         setTimeout(() => {
-                            bonjour.destroy();
+                            publishedBonjour.destroy();
                             console.log('Bonjour services have been shut down properly.');
                             process.exit(0);
                         }, 500);
                     });
                 });
             }
-            const service = bonjour.publish({
+            const service = publishedBonjour.publish({
                 name: 'Scripting-service',
                 type: 'http',
                 port: PORT,

@@ -9,6 +9,8 @@ import chalk from 'chalk';
 import qrcode from 'qrcode-terminal';
 import { createTsConfig, ensureScriptsDirectory } from './util';
 import { Controller } from './controller';
+import { agentBroker } from './agent_broker';
+import { startAgentControl } from './agent_control';
 import { initHttpRouter } from './http_router';
 import { resolveConfig } from './config';
 import { writeEditorSettings, getEditor } from './editors';
@@ -16,8 +18,7 @@ import { ResolvedConfig } from './types';
 
 const app = express();
 const server = http.createServer(app);
-const io = new SocketIOServer(server);
-const bonjour = Bonjour();
+const io = new SocketIOServer(server, { maxHttpBufferSize: 16 * 1024 * 1024 });
 
 // Keywords to identify VPN/virtual network adapters that should be excluded
 const VIRTUAL_ADAPTER_KEYWORDS = [
@@ -117,6 +118,8 @@ export async function startServer({ port, noAutoOpen, startBonjourService, edito
   });
 
   const PORT = config.port;
+  const bonjour = startBonjourService ? Bonjour() : undefined;
+  await startAgentControl(agentBroker);
 
   const editor = getEditor(config.editor);
   console.log(chalk.gray(`Editor: ${editor?.displayName ?? config.editor}`));
@@ -149,15 +152,16 @@ export async function startServer({ port, noAutoOpen, startBonjourService, edito
 
     qrcode.generate(address, { small: true });
 
-    if (startBonjourService) {
+    if (startBonjourService && bonjour) {
+      const publishedBonjour = bonjour;
 
       function gracefulShutdown() {
         console.log('Shutting down Bonjour...');
         service.stop(() => {
-          bonjour.unpublishAll(() => {
+          publishedBonjour.unpublishAll(() => {
             // wait for 500ms，let goodbye message be sent completely
             setTimeout(() => {
-              bonjour.destroy();
+              publishedBonjour.destroy();
               console.log('Bonjour services have been shut down properly.');
               process.exit(0);
             }, 500);
@@ -165,7 +169,7 @@ export async function startServer({ port, noAutoOpen, startBonjourService, edito
         });
       }
 
-      const service = bonjour.publish({
+      const service = publishedBonjour.publish({
         name: 'Scripting-service',
         type: 'http',
         port: PORT,
