@@ -26,6 +26,8 @@ class Controller {
     agentPauses = 0;
     pendingAgentChanges = new Map();
     sendChange(event, data) {
+        if (data.scriptName !== this.scriptName)
+            return;
         if (this.agentPauses) {
             this.pendingAgentChanges.set(data.filePath, { event, data });
             return;
@@ -41,6 +43,27 @@ class Controller {
         this.socket = socket;
         agent_broker_1.agentBroker.register(socket, {
             project: () => this.scriptName,
+            types: async (files) => {
+                const directory = path_1.default.join(process.cwd(), 'dts');
+                if (fs_1.default.existsSync(directory) && fs_1.default.lstatSync(directory).isSymbolicLink())
+                    throw new Error('Type directory cannot be a symlink.');
+                for (const name of Object.keys(files)) {
+                    const file = path_1.default.join(directory, name);
+                    if (fs_1.default.existsSync(file) && fs_1.default.lstatSync(file).isSymbolicLink())
+                        throw new Error('Type file cannot be a symlink.');
+                }
+                await (0, util_1.writeDtsFiles)(files);
+                for (const [name, value] of Object.entries(files))
+                    if (fs_1.default.readFileSync(path_1.default.join(directory, name), 'utf8') !== value)
+                        throw new Error('Type declarations were not written.');
+            },
+            switchProject: async (project) => {
+                await this.watcher?.close();
+                this.watcher = null;
+                this.pendingAgentChanges.clear();
+                this.scriptName = project;
+                this.createWatcher(project, true);
+            },
             ignore: () => this.config.ignore,
             pause: () => { this.agentPauses++; },
             resume: snapshot => {
@@ -77,11 +100,12 @@ class Controller {
             socket.emit("serverScripts", serverScriptNames);
         });
     }
-    createWatcher(scriptName) {
+    createWatcher(scriptName, ignoreInitial = false) {
         const scriptDir = (0, util_1.getScriptPath)(scriptName);
         this.watcher = chokidar_1.default.watch(scriptDir, {
             ignored: (filePath) => (0, util_1.isIgnoredPath)((0, util_1.getRelativePath)(scriptDir, filePath), this.config.ignore),
             persistent: true,
+            ignoreInitial,
         });
         const updateHandler = (filePath) => {
             if (!(0, util_1.isBinaryFile)(filePath)) {

@@ -18,6 +18,8 @@ interface Peer {
         ignore: () => string[];
         pause: () => void;
         resume: (snapshot?: SourceSnapshot) => void;
+        switchProject?: (project: string) => Promise<void>;
+        types?: (files: Record<string, string>) => Promise<void>;
     };
 }
 interface Job {
@@ -39,8 +41,14 @@ interface Job {
     fingerprint: string;
     cancel?: () => void;
 }
+interface JobEvent {
+    seq: number;
+    type: string;
+    [key: string]: unknown;
+}
 export declare class AgentBroker {
     readonly workspace: string;
+    private eventLogs;
     private peers;
     private jobs;
     private activeMutations;
@@ -59,6 +67,15 @@ export declare class AgentBroker {
     private removeArtifact;
     private statusFields;
     private storeArtifact;
+    private event;
+    events(id: string, after: number): {
+        events: JobEvent[];
+        nextCursor: number;
+        truncated: boolean;
+        terminal: boolean;
+        logsTruncated: boolean;
+    };
+    private scaffold;
     prune(now?: number): void;
     close(): void;
 }

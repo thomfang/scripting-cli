@@ -52,6 +52,11 @@ async function controlRequest(state, route, body) {
             throw new agent_protocol_1.AgentError('stale_server', 'The local server instance changed.');
         return value;
     }
+    catch (error) {
+        if (error instanceof agent_protocol_1.AgentError)
+            throw error;
+        throw new agent_protocol_1.AgentError('control_unavailable', 'The local CLI service stopped responding. Execution was not replayed; inspect the App before retrying.');
+    }
     finally {
         clearTimeout(timer);
     }
@@ -101,6 +106,12 @@ async function startAgentControl(broker) {
     } });
     app.get('/v1/jobs/:id', (req, res, next) => { try {
         send(res, broker.get(req.params.id));
+    }
+    catch (e) {
+        next(e);
+    } });
+    app.get('/v1/jobs/:id/events', (req, res, next) => { try {
+        send(res, broker.events(req.params.id, Number(req.query.after ?? 0)));
     }
     catch (e) {
         next(e);
@@ -171,14 +182,16 @@ function materializeArtifacts(result, runId, output) {
         fs_1.default.mkdirSync(directory, { recursive: true });
         if (fs_1.default.lstatSync(directory).isSymbolicLink())
             throw new agent_protocol_1.AgentError('invalid_artifact', 'Artifact directory cannot be a symlink.');
-        const file = path_1.default.join(directory, 'screenshot.png');
+        if (image.id !== undefined && (typeof image.id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(image.id)))
+            throw new agent_protocol_1.AgentError('invalid_artifact', 'Invalid image case ID.');
+        const file = path_1.default.join(directory, (image.id ?? 'screenshot') + '.png');
         if (fs_1.default.existsSync(file)) {
             if (fs_1.default.lstatSync(file).isSymbolicLink() || (0, agent_protocol_1.hash)(fs_1.default.readFileSync(file)) !== image.sha256)
                 throw new agent_protocol_1.AgentError('artifact_exists', 'Output already exists with different content.');
         }
         else
             fs_1.default.writeFileSync(file, bytes, { flag: 'wx', mode: 0o600 });
-        return { path: file, mimeType: 'image/png', width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20), sha256: image.sha256 };
+        return { ...(image.id ? { id: image.id } : {}), path: file, mimeType: 'image/png', width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20), sha256: image.sha256 };
     });
     return { ...result, artifacts };
 }

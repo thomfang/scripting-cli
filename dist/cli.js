@@ -101,8 +101,11 @@ const agent_cli_1 = require("./agent_cli");
     .strict()
     .fail((message, error) => {
     const detail = error?.message ?? message;
-    if (process.argv.includes('--json'))
-        console.log(JSON.stringify({ status: 'failed', error: { code: 'invalid_usage', message: detail } }));
+    const result = { status: 'failed', error: { code: 'invalid_usage', message: detail } };
+    if (process.argv.includes('--stream'))
+        console.log(JSON.stringify({ type: 'result', job: result }));
+    else if (process.argv.includes('--json'))
+        console.log(JSON.stringify(result));
     else
         console.error(detail);
     process.exit(2);

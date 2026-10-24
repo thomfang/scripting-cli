@@ -19,7 +19,18 @@ export interface SourceSnapshot {
     files: SourceFile[];
     ignore: string[];
 }
+export interface WidgetCase {
+    id: string;
+    family: string;
+    parameter?: string;
+    screenshot: boolean;
+}
 export interface AgentOptions {
+    events?: boolean;
+    readyLog?: string;
+    cases?: WidgetCase[];
+    replace?: boolean;
+    expectedRevision?: string;
     timeout?: number;
     screenshot?: boolean;
     captureAfter?: number;
@@ -42,6 +53,7 @@ export interface AgentCommand {
 }
 export declare const methods: string[];
 export declare function validateCommand(value: any): AgentCommand;
+export declare function validProjectName(value: unknown): value is string;
 export declare function safeRelativePath(value: string): boolean;
 export declare function revisionForFiles(files: Pick<SourceFile, 'path' | 'sha256'>[]): string;
 export declare function snapshotProject(workspace: string, project: string, ignore: string[]): Promise<SourceSnapshot>;

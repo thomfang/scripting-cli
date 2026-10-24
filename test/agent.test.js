@@ -18,14 +18,14 @@ function fixture(t) {
 }
 function device(broker,id=uuid(),handler) {
   const socket=new EventEmitter();socket.id=uuid();socket.connected=true;
-  const state={pauses:0,resumes:0,requests:[],project:'Fixture',cancelled:[]};
-  broker.register(socket,{project:()=>state.project,ignore:()=>[],pause:()=>state.pauses++,resume:()=>state.resumes++});
+  const state={pauses:0,resumes:0,requests:[],project:'Fixture',cancelled:[],types:[]};
+  broker.register(socket,{project:()=>state.project,ignore:()=>[],pause:()=>state.pauses++,resume:()=>state.resumes++,switchProject:async project=>{state.project=project;},types:async files=>{state.types.push(files);}});
   socket.on('agentRequest',request=>{
     state.requests.push(request);
     if(handler)handler(request,reply=>socket.emit('agentResult',{protocolVersion:1,requestId:request.requestId,runId:request.runId,sessionId:request.sessionId,...reply}));
   });
   socket.on('agentCancel',value=>state.cancelled.push(value));
-  socket.emit('agentHello',{protocolVersion:1,deviceId:id,sessionId:uuid(),project:'Fixture',capabilities:['status','run','widget','docs.search','docs.get','api.get']});
+  socket.emit('agentHello',{protocolVersion:1,deviceId:id,sessionId:uuid(),project:'Fixture',capabilities:['status','run','widget','docs.search','docs.get','api.get','events-v1','ready-log','widget.batch','projects.list','projects.inspect','projects.create','projects.attach']});
   return {socket,state,id};
 }
 async function finished(broker,id) {
@@ -195,4 +195,82 @@ test('cancelling during local source capture never admits a later device executi
   const result=await finished(broker,job.runId);
   assert.equal(result.status,'cancelled');assert.equal(result.error.code,'cancelled');
   assert.equal(peer.state.requests.length,0);assert.equal(peer.state.pauses,1);assert.equal(peer.state.resumes,1);
+});
+
+
+test('live events are ordered, bounded, and bound to the exact pending socket/request/session',async t=>{
+  const broker=new AgentBroker(fixture(t));t.after(()=>broker.close());let request,respond;
+  const peer=device(broker,undefined,(r,reply)=>{request=r;respond=reply;});
+  const other=device(broker);
+  const job=broker.submit({method:'run',device:peer.id});while(!request)await new Promise(r=>setImmediate(r));
+  const event={runId:request.runId,requestId:request.requestId,sessionId:request.sessionId,type:'log',message:'fresh'};
+  other.socket.emit('agentEvent',event);
+  peer.socket.emit('agentEvent',{...event,sessionId:uuid(),message:'stale'});
+  peer.socket.emit('agentEvent',event);
+  let page=broker.events(job.runId,0);assert.equal(page.events.filter(e=>e.type==='log').length,1);assert.equal(page.events.at(-1).message,'fresh');
+  for(let i=0;i<12;i++)peer.socket.emit('agentEvent',{...event,message:'x'.repeat(8192)});
+  assert.equal(broker.events(job.runId,0).logsTruncated,true);
+  for(let i=0;i<300;i++)peer.socket.emit('agentEvent',{...event,type:'stage',stage:'rendering'});
+  page=broker.events(job.runId,0);assert.equal(page.events.length,256);assert.equal(page.truncated,true);
+  assert.ok(page.events.every((e,i,a)=>i===0||e.seq>a[i-1].seq));
+  assert.throws(()=>broker.events(job.runId,-1),e=>e.code==='invalid_cursor');
+  respond({status:'completed',revision:request.snapshot.revision,result:{value:'done'}});await finished(broker,job.runId);
+  const cursor=broker.events(job.runId,0).nextCursor;peer.socket.emit('agentEvent',event);assert.equal(broker.events(job.runId,cursor).events.length,0);
+});
+test('new readiness/live-event options reject old App capabilities instead of being silently ignored',t=>{
+  const broker=new AgentBroker(fixture(t));t.after(()=>broker.close());const peer=device(broker);
+  peer.socket.emit('agentHello',{protocolVersion:1,deviceId:peer.id,sessionId:uuid(),project:'Fixture',capabilities:['run']});
+  for(const options of [{screenshot:true,readyLog:'READY'},{events:true}])assert.throws(()=>broker.submit({method:'run',options}),e=>e.code==='unsupported_capability');
+});
+test('widget batches reject unsafe/duplicate IDs and preserve named image outputs',async t=>{
+  for(const cases of [[],Array(9).fill({id:'a',family:'systemSmall',screenshot:false}),[{id:'../escape',family:'systemSmall',screenshot:true}],[{id:'a',family:'systemSmall',screenshot:false},{id:'a',family:'systemMedium',screenshot:true}]])assert.throws(()=>validateCommand({method:'widget.batch',options:{cases}}),e=>e.code==='invalid_request');
+  const root=fixture(t),broker=new AgentBroker(root);t.after(()=>broker.close());
+  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64');
+  device(broker,undefined,(request,reply)=>queueMicrotask(()=>reply({status:'completed',revision:request.snapshot.revision,result:{cases:[{id:'small'},{id:'medium'}],images:['small','medium'].map(id=>({id,data:png.toString('base64'),sha256:hash(png)}))}})));
+  const job=await finished(broker,broker.submit({method:'widget.batch',options:{cases:['small','medium'].map(id=>({id,family:'systemSmall',screenshot:true}))}}).runId);
+  assert.equal(job.status,'completed');assert.equal(job.result.images,undefined);
+  const out=materializeArtifacts(job.result,job.runId,path.join(root,'output'));
+  assert.deepEqual(out.artifacts.map(a=>path.basename(a.path)),['small.png','medium.png']);assert.equal(out.artifacts.length,2);
+});
+test('project creation and replacement only switch the watcher after native success',async t=>{
+  const root=fixture(t),broker=new AgentBroker(root);t.after(()=>broker.close());let succeed=false;
+  const peer=device(broker,undefined,(request,reply)=>queueMicrotask(()=>reply(succeed?{status:'completed',revision:request.snapshot.revision,result:{project:request.project}}:{status:'failed',result:{currentRevision:'a'.repeat(64)},error:{code:'project_conflict',message:'Inspect first.'}})));
+  const failed=await finished(broker,broker.submit({method:'projects.attach',project:'Fixture'}).runId);assert.equal(failed.error.code,'project_conflict');assert.equal(peer.state.project,'Fixture');
+  succeed=true;const created=await finished(broker,broker.submit({method:'projects.create',project:'New Project'}).runId);
+  assert.equal(created.status,'completed');assert.equal(peer.state.project,'New Project');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root,'scripts','New Project','script.json'))).name,'New Project');
+  for(const project of ['../bad','.hidden','bad:name'])assert.throws(()=>broker.submit({method:'projects.create',project}),e=>e.code==='invalid_project');
+});
+test('actual stream CLI emits live JSONL before completion, then one final structured result',async t=>{
+  const root=fixture(t),broker=new AgentBroker(root),control=await startAgentControl(broker);t.after(()=>control.close());
+  const peer=device(broker,undefined,(request,reply)=>{
+    setTimeout(()=>peer.socket.emit('agentEvent',{runId:request.runId,requestId:request.requestId,sessionId:request.sessionId,type:'log',message:'before-finish'}),20);
+    setTimeout(()=>reply({status:'completed',revision:request.snapshot.revision,result:{value:42}}),600);
+  });
+  const result=await new Promise((resolve,reject)=>{
+    const child=require('node:child_process').spawn(process.execPath,[path.resolve(__dirname,'../dist/cli.js'),'run','Fixture','--stream','--screenshot','--ready-log','READY'],{cwd:root});
+    let text='',logArrivedBeforeCompletion=false;child.stdout.on('data',data=>{text+=data;if(text.includes('before-finish')&&!text.includes('"type":"result"'))logArrivedBeforeCompletion=true;});
+    child.on('error',reject);child.on('close',code=>resolve({code,text,logArrivedBeforeCompletion}));
+  });
+  assert.equal(result.code,0,result.text);assert.equal(result.logArrivedBeforeCompletion,true);
+  const events=result.text.trim().split('\n').map(JSON.parse);assert.equal(events.filter(e=>e.type==='result').length,1);assert.equal(events.at(-1).job.result.value,42);
+  assert.equal(peer.state.requests[0].options.readyLog,'READY');
+});
+
+test('type declarations require the exact pending project identity and safe declaration names',async t=>{
+  const broker=new AgentBroker(fixture(t));t.after(()=>broker.close());let request,reply;
+  const peer=device(broker,undefined,(r,respond)=>{request=r;reply=respond;});
+  const job=broker.submit({method:'projects.attach',project:'Fixture'});while(!request)await new Promise(r=>setImmediate(r));
+  async function publish(extra={}) {return new Promise(resolve=>peer.socket.emit('agentTypes',{requestId:request.requestId,runId:request.runId,sessionId:request.sessionId,files:{'global.d.ts':'declare const sample: number','scripting.d.ts':'export {}'},...extra},resolve));}
+  assert.ok((await publish({sessionId:uuid()})).error);assert.equal(peer.state.types.length,0);
+  assert.ok((await publish({files:{'global.d.ts':'x','scripting.d.ts':'y','../escape.d.ts':'z'}})).error);assert.equal(peer.state.types.length,0);
+  assert.equal((await publish()).success,true);assert.equal(peer.state.types.length,1);
+  reply({status:'completed',revision:request.snapshot.revision,result:{project:'Fixture'}});await finished(broker,job.runId);
+  assert.ok((await publish()).error);
+});
+
+test('a stopped local control service reports unavailable without replaying an execution',async t=>{
+  const broker=new AgentBroker(fixture(t)),control=await startAgentControl(broker);
+  await control.close();
+  await assert.rejects(controlRequest(control.state,'/v1/info'),e=>e.code==='control_unavailable');
 });

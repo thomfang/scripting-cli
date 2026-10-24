@@ -36,6 +36,9 @@ export async function controlRequest(state: ControlState, route: string, body?: 
     if (!response.ok) throw new AgentError(value.error?.code ?? 'control_error', value.error?.message ?? 'Control request failed.');
     if (value.instanceId !== state.instanceId) throw new AgentError('stale_server', 'The local server instance changed.');
     return value;
+  } catch(error) {
+    if(error instanceof AgentError)throw error;
+    throw new AgentError('control_unavailable','The local CLI service stopped responding. Execution was not replayed; inspect the App before retrying.');
   } finally { clearTimeout(timer); }
 }
 export async function startAgentControl(broker: AgentBroker) {
@@ -60,6 +63,7 @@ export async function startAgentControl(broker: AgentBroker) {
   app.get('/v1/devices', async (_req,res,next) => { try { send(res,await broker.devices()); } catch(e) { next(e); } });
   app.post('/v1/requests', (req,res,next) => { try { send(res,broker.submit(req.body)); } catch(e) { next(e); } });
   app.get('/v1/jobs/:id', (req,res,next) => { try { send(res,broker.get(req.params.id)); } catch(e) { next(e); } });
+  app.get('/v1/jobs/:id/events',(req,res,next)=>{try{send(res,broker.events(req.params.id,Number(req.query.after??0)));}catch(e){next(e);}});
   app.post('/v1/jobs/:id/cancel', (req,res,next) => { try { send(res,broker.cancel(req.params.id)); } catch(e) { next(e); } });
   app.use((_req,res) => { res.status(404).json({ error: {code:'not_found',message:'Unknown control route.'} }); });
   app.use((error: unknown,_req: express.Request,res: express.Response,_next: express.NextFunction) => { res.status(400).json({ error: failure(error) }); });
@@ -97,11 +101,12 @@ export function materializeArtifacts(result: any, runId: string, output: string)
     if (bytes.length<24 || bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a' || hash(bytes)!==image.sha256) throw new AgentError('invalid_artifact','Invalid PNG screenshot.');
     const directory=path.resolve(output,runId);fs.mkdirSync(directory,{recursive:true});
     if (fs.lstatSync(directory).isSymbolicLink()) throw new AgentError('invalid_artifact','Artifact directory cannot be a symlink.');
-    const file=path.join(directory,'screenshot.png');
+    if(image.id!==undefined && (typeof image.id!=='string'||!/^[a-zA-Z0-9_-]{1,64}$/.test(image.id))) throw new AgentError('invalid_artifact','Invalid image case ID.');
+    const file=path.join(directory,(image.id??'screenshot')+'.png');
     if (fs.existsSync(file)) {
       if (fs.lstatSync(file).isSymbolicLink() || hash(fs.readFileSync(file))!==image.sha256) throw new AgentError('artifact_exists','Output already exists with different content.');
     } else fs.writeFileSync(file,bytes,{flag:'wx',mode:0o600});
-    return {path:file,mimeType:'image/png',width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20),sha256:image.sha256};
+    return {...(image.id?{id:image.id}:{}),path:file,mimeType:'image/png',width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20),sha256:image.sha256};
   });
   return {...result,artifacts};
 }

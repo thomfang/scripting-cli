@@ -28,6 +28,7 @@ export class Controller {
   private agentPauses = 0;
   private pendingAgentChanges = new Map<string, { event: string; data: any }>();
   private sendChange(event: string, data: any) {
+    if (data.scriptName !== this.scriptName) return;
     if (this.agentPauses) { this.pendingAgentChanges.set(data.filePath, { event, data }); return; }
     this.socket?.emit(event, data);
   }
@@ -43,6 +44,17 @@ export class Controller {
 
     agentBroker.register(socket, {
       project: () => this.scriptName,
+      types: async files => {
+        const directory=path.join(process.cwd(),'dts');
+        if(fs.existsSync(directory)&&fs.lstatSync(directory).isSymbolicLink())throw new Error('Type directory cannot be a symlink.');
+        for(const name of Object.keys(files)){const file=path.join(directory,name);if(fs.existsSync(file)&&fs.lstatSync(file).isSymbolicLink())throw new Error('Type file cannot be a symlink.');}
+        await writeDtsFiles(files);
+        for(const [name,value] of Object.entries(files))if(fs.readFileSync(path.join(directory,name),'utf8')!==value)throw new Error('Type declarations were not written.');
+      },
+      switchProject: async project => {
+        await this.watcher?.close();this.watcher=null;this.pendingAgentChanges.clear();
+        this.scriptName=project;this.createWatcher(project,true);
+      },
       ignore: () => this.config.ignore,
       pause: () => { this.agentPauses++; },
       resume: snapshot => {
@@ -89,12 +101,13 @@ export class Controller {
     })
   }
 
-  createWatcher(scriptName: string) {
+  createWatcher(scriptName: string, ignoreInitial = false) {
     const scriptDir = getScriptPath(scriptName)
     this.watcher = chokidar.watch(scriptDir, {
       ignored: (filePath: string) =>
         isIgnoredPath(getRelativePath(scriptDir, filePath), this.config.ignore),
       persistent: true,
+      ignoreInitial,
     });
 
     const updateHandler = (filePath: string) => {

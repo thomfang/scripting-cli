@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.methods = exports.hash = exports.AgentError = exports.widgetFamilies = exports.MAX_IMAGE_BYTES = exports.MAX_FILES = exports.MAX_SOURCE_BYTES = exports.PROTOCOL_VERSION = void 0;
 exports.validateCommand = validateCommand;
+exports.validProjectName = validProjectName;
 exports.safeRelativePath = safeRelativePath;
 exports.revisionForFiles = revisionForFiles;
 exports.snapshotProject = snapshotProject;
@@ -29,7 +30,7 @@ class AgentError extends Error {
 exports.AgentError = AgentError;
 const hash = (bytes) => crypto_1.default.createHash('sha256').update(bytes).digest('hex');
 exports.hash = hash;
-exports.methods = ['status', 'docs.search', 'docs.get', 'api.get', 'run', 'widget'];
+exports.methods = ['status', 'docs.search', 'docs.get', 'api.get', 'run', 'widget', 'widget.batch', 'projects.list', 'projects.inspect', 'projects.create', 'projects.attach'];
 function validateCommand(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value) || !exports.methods.includes(value.method))
         throw new AgentError('invalid_request', 'Unknown command.');
@@ -48,7 +49,7 @@ function validateCommand(value) {
     const o = value.options ?? {};
     if (!o || typeof o !== 'object' || Array.isArray(o))
         throw new AgentError('invalid_request', 'Invalid options.');
-    for (const k of ['screenshot', 'noSync'])
+    for (const k of ['screenshot', 'noSync', 'replace', 'events'])
         if (o[k] !== undefined && typeof o[k] !== 'boolean')
             throw new AgentError('invalid_request', `Invalid ${k}.`);
     if (o.timeout !== undefined && (!Number.isFinite(o.timeout) || o.timeout < 1 || o.timeout > 120))
@@ -61,8 +62,25 @@ function validateCommand(value) {
         throw new AgentError('invalid_request', 'Invalid widget parameter.');
     if (o.queryParameters !== undefined && (!o.queryParameters || typeof o.queryParameters !== 'object' || Array.isArray(o.queryParameters) || Buffer.byteLength(JSON.stringify(o.queryParameters)) > 65536))
         throw new AgentError('invalid_request', 'Invalid query parameters.');
+    if (o.readyLog !== undefined && (value.method !== 'run' || !o.screenshot || typeof o.readyLog !== 'string' || !o.readyLog.length || Buffer.byteLength(o.readyLog) > 1024 || /[\r\n]/.test(o.readyLog)))
+        throw new AgentError('invalid_request', 'Ready log requires script screenshot mode and one exact line.');
+    if (o.expectedRevision !== undefined && (typeof o.expectedRevision !== 'string' || !/^[a-f0-9]{64}$/.test(o.expectedRevision)))
+        throw new AgentError('invalid_request', 'Invalid expected revision.');
+    if (value.method.startsWith('projects.') && value.method !== 'projects.list' && !validProjectName(value.project))
+        throw new AgentError('invalid_project', 'A safe project name is required.');
+    if (value.method === 'widget.batch') {
+        if (!Array.isArray(o.cases) || o.cases.length < 1 || o.cases.length > 8)
+            throw new AgentError('invalid_request', 'Supply 1...8 widget cases.');
+        const ids = new Set();
+        for (const c of o.cases) {
+            if (!c || typeof c !== 'object' || typeof c.id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(c.id) || ids.has(c.id) || !exports.widgetFamilies.includes(c.family) || typeof c.screenshot !== 'boolean' || (c.parameter !== undefined && (typeof c.parameter !== 'string' || c.parameter.length > 16384)))
+                throw new AgentError('invalid_request', 'Invalid or duplicate widget case.');
+            ids.add(c.id);
+        }
+    }
     return { ...value, options: o };
 }
+function validProjectName(value) { return typeof value === 'string' && value.length > 0 && Buffer.byteLength(value) < 256 && value !== '.' && value !== '..' && !value.startsWith('.') && !/[\/\\:\x00-\x1f\x7f]/.test(value); }
 function safeRelativePath(value) {
     return Buffer.byteLength(value) > 0 && Buffer.byteLength(value) < 1024 && !/[\\:\x00-\x1f\x7f]/.test(value) && !path_1.default.posix.isAbsolute(value) && value.split('/').length <= 32 && value.split('/').every(p => !!p && p !== '.' && p !== '..');
 }
@@ -70,7 +88,7 @@ function revisionForFiles(files) {
     return (0, exports.hash)([...files].sort((a, b) => Buffer.compare(Buffer.from(a.path), Buffer.from(b.path))).map(f => `${f.path}\0${f.sha256}\n`).join(''));
 }
 async function snapshotProject(workspace, project, ignore) {
-    if (!project || project === '.' || project === '..' || /[\/\\\x00-\x1f]/.test(project))
+    if (!validProjectName(project))
         throw new AgentError('invalid_project', 'Invalid project name.');
     const root = path_1.default.join(workspace, 'scripts', project);
     const scripts = await fs_1.default.promises.realpath(path_1.default.join(workspace, 'scripts'));

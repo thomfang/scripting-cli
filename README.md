@@ -219,8 +219,8 @@ syncing but do not support the new commands.
 2. Connect Scripting to that server. Select a script and enter its debug page.
 3. The existing sync workflow creates `scripts/<project>/` in the workspace.
 4. Run the commands below from that same workspace. The first release only
-   operates on the App's currently selected debug project. It never creates or
-   switches App projects by guessing a directory name.
+   runs the App's selected debug project. Use the explicit projects commands below
+   to create or change that selection; execution never switches it implicitly.
 
 ```sh
 scripting-cli devices --json
@@ -306,3 +306,86 @@ boundaries, artifact delivery, retention, and actual CLI child processes. It
 uses only owned temporary fixtures and removes them afterward. Real App
 execution and screenshots also require App-side integration evidence; mocked
 peers do not substitute for device rendering.
+
+
+## Live feedback, ready screenshots, batches, and project management
+
+The next capabilities are negotiated separately. An older protocol-v1 App can
+still use first-release commands, but unsupported ready-log, streaming or project
+commands fail explicitly.
+
+```sh
+scripting-cli run "MyScript" --stream
+scripting-cli jobs events <run-id> --after 0 --json
+scripting-cli projects list --json
+scripting-cli projects inspect "MyScript" --json
+scripting-cli projects create "NewScript" --json
+scripting-cli projects attach "MyScript" --json
+# Only after reviewing an App/desktop source conflict and choosing desktop source:
+scripting-cli projects attach "MyScript" --replace --expected-revision <App-revision-from-inspect> --json
+```
+
+`--stream` emits JSONL stage/log/diagnostic records with monotonic `seq` and run,
+request, device, session identity, then one `type: result` record with `job`.
+It replaces the single JSON result format even with `--json`. Sync, compilation,
+execution, ready waiting, rendering and capture are distinct stages. Events keep
+256 recent records and 64 KiB of streamed log text per job; `gap` reports a slow
+reader falling behind retention. Final logs also report truncation. Diagnostics
+are collected on failures within the original deadline, with project-relative
+`file`, one-based `line`/`column`, TypeScript `code` and message when available;
+runtime failures do not necessarily have a TypeScript diagnostic.
+
+For data-driven UI, emit an explicit exact log when the intended state is ready:
+
+```ts
+console.log("SCREENSHOT_READY")
+```
+
+Then run `scripting-cli run "MyScript" --screenshot --ready-log SCREENSHOT_READY --capture-after 1 --json`.
+Only a non-error log from this run matches. Capture waits for both the signal and
+a valid view before its settling delay; missing signals/views and foreground
+loss never yield a successful screenshot. A script that exits without its signal
+returns `ready_signal_missing`. Existing timeout rules remain unchanged.
+
+`widget-batch "MyScript" --cases ./cases.json --timeout 60 --stream` runs one
+source revision across 1...8 serial widget cases. A manifest is a JSON array:
+
+```json
+[
+  {"id":"small","family":"systemSmall","parameter":"default","screenshot":true},
+  {"id":"medium","family":"systemMedium","parameter":"empty","screenshot":true},
+  {"id":"render-only","family":"systemSmall","screenshot":false}
+]
+```
+
+IDs use letters, digits, `_` and `-`, and must be unique. Results name each case
+and any skipped cases; PNGs are `<output>/<run-id>/<case-id>.png`. Image bytes total
+at most 8 MiB for the batch. A failed/cancelled batch can retain completed earlier
+cases; remaining cases do not execute. Every preview uses foreground rendering
+and closes automatically, without changing normal preview preferences.
+
+Project commands need the App connected; create/attach also need foreground and
+refuse an active manual run/preview. `create` uses an existing desktop directory
+or creates a minimal local `script.json` / `index.tsx` scaffold when absent. App
+name collisions return `project_exists`, without overwriting that App project.
+A scaffold can remain locally if App creation is refused. `attach` publishes a
+desktop snapshot and enters that project's debug page. Different App source
+returns `project_conflict` with its current revision; only explicit `--replace`
+plus the inspected `--expected-revision` permits replacement. A changed App
+revision is rejected again at publication. Ignored files are preserved. The
+server changes its watcher only after native success; delayed old-project events
+cannot write into the newly selected project. Type declarations are refreshed
+from the same App for desktop editing.
+
+### Portable agent skill
+
+The package includes [skills/scripting-development/SKILL.md](skills/scripting-development/SKILL.md).
+`scripting-cli skill` prints the complete portable skill. It explains the
+connected documentation → edit → execute → inspect screenshot → refine loop,
+project conflicts, readiness, batches and cancellation for Codex/Claude Code.
+Copy its directory into your agent's configured skill location if desired;
+this command does not install it or change global agent configuration. Inspect
+App/desktop conflicts and obtain authorization for the particular overwrite
+before running the replacement command.
+
+If the local service itself stops, commands report `control_unavailable`; they do not replay execution. Reconnect, inspect App status, and explicitly attach the intended project before a new run.

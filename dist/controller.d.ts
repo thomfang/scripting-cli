@@ -14,7 +14,7 @@ export declare class Controller {
     socket: Socket | null;
     config: ResolvedConfig;
     constructor(socket: Socket, config: ResolvedConfig);
-    createWatcher(scriptName: string): void;
+    createWatcher(scriptName: string, ignoreInitial?: boolean): void;
     handleSyncScriptFromClient: (data: {
         [globalDtsFileName]: string;
         [scriptingDtsFileName]: string;
