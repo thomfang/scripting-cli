@@ -1,5 +1,7 @@
 # Scripting App Command-Line Tool
 
+Release notes and migration from 1.x: [scripting-cli 2.0.0](docs/releases/2.0.0.md).
+
 Welcome to the `scripting-cli`, the command-line tool designed for integrating with the Scripting app. This tool allows you to synchronize and preview your scripts in real-time as you develop them using your favorite desktop editor (VSCode, Cursor, Windsurf, Zed, WebStorm, Vim, and more).
 
 [中文](./README_zh.md) | [日本語](./README_ja.md) | [Deutsch](./README_de.md) | [Français](./README_fr.md) | [Italiano](./README_it.md)

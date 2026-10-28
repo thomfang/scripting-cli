@@ -1,5 +1,7 @@
 # Scripting 应用命令行工具
 
+2.0.0 更新及从 1.x 迁移：[版本说明](docs/releases/2.0.0.md)。
+
 欢迎使用 `scripting-cli` 命令行工具，它旨在与 Scripting 应用集成。该工具允许您在使用喜爱的桌面编辑器（VSCode、Cursor、Windsurf、Zed、WebStorm、Vim 等）开发脚本时，实现实时同步和预览。
 
 [English](./README.md) | [日本語](./README_ja.md) | [Deutsch](./README_de.md) | [Français](./README_fr.md) | [Italiano](./README_it.md)
