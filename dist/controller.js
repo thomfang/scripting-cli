@@ -12,6 +12,7 @@ const path_1 = __importDefault(require("path"));
 const const_1 = require("./const");
 const editors_1 = require("./editors");
 const agent_broker_1 = require("./agent_broker");
+const skill_sync_1 = require("./skill_sync");
 const agent_protocol_1 = require("./agent_protocol");
 class Controller {
     static instances = new Map();
@@ -34,6 +35,7 @@ class Controller {
         }
         this.socket?.emit(event, data);
     }
+    skillSync;
     watcher = null;
     scriptName = null;
     socket = null;
@@ -41,8 +43,18 @@ class Controller {
     constructor(socket, config) {
         this.config = config;
         this.socket = socket;
+        this.skillSync = new skill_sync_1.SkillSyncController(socket, process.cwd(), config.ignore, async () => {
+            if (this.agentPauses)
+                throw new Error('A desktop run is active.');
+            await this.watcher?.close();
+            this.watcher = null;
+            this.scriptName = null;
+            this.pendingAgentChanges.clear();
+        });
         agent_broker_1.agentBroker.register(socket, {
-            project: () => this.scriptName,
+            script: () => this.scriptName,
+            skill: () => this.skillSync.selected(),
+            skillReady: () => this.skillSync.drain(),
             types: async (files) => {
                 const directory = path_1.default.join(process.cwd(), 'dts');
                 if (fs_1.default.existsSync(directory) && fs_1.default.lstatSync(directory).isSymbolicLink())
@@ -57,16 +69,17 @@ class Controller {
                     if (fs_1.default.readFileSync(path_1.default.join(directory, name), 'utf8') !== value)
                         throw new Error('Type declarations were not written.');
             },
-            switchProject: async (project) => {
+            switchScript: async (script) => {
                 await this.watcher?.close();
                 this.watcher = null;
                 this.pendingAgentChanges.clear();
-                this.scriptName = project;
-                this.createWatcher(project, true);
+                this.scriptName = script;
+                this.createWatcher(script, true);
             },
             ignore: () => this.config.ignore,
-            pause: () => { this.agentPauses++; },
-            resume: snapshot => {
+            pause: () => { this.agentPauses++; this.skillSync.pause(); },
+            resume: (snapshot, bindingId) => {
+                this.skillSync.resume(bindingId === this.skillSync.selected()?.bindingId ? snapshot : undefined);
                 this.agentPauses = Math.max(0, this.agentPauses - 1);
                 if (!this.agentPauses) {
                     for (const { event, data } of this.pendingAgentChanges.values()) {
@@ -88,6 +101,7 @@ class Controller {
         socket.on('disconnect', (reason) => {
             console.log(chalk_1.default.gray(`Client [${socket.id}] disconnected: ${reason}`));
             this.watcher?.close();
+            void this.skillSync.close();
             this.watcher = null;
             this.scriptName = null;
             Controller.instances.delete(socket.id);
@@ -157,6 +171,7 @@ class Controller {
                 ack({ error: 'A desktop run is active.' });
                 return;
             }
+            await this.skillSync.stop();
             if (data.scriptName === this.scriptName) {
                 ack({
                     error: `Script [${data.scriptName}] is already initialized`,
@@ -212,6 +227,7 @@ class Controller {
                 ack({ error: 'A desktop run is active.' });
                 return;
             }
+            await this.skillSync.stop();
             if (this.scriptName === data.scriptName) {
                 ack({
                     error: `Script ${data.scriptName} is already initialized`,

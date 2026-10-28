@@ -124,7 +124,8 @@ function createTsConfig() {
   },
   "include": [
     "./dts/*.d.ts",
-    "scripts"
+    "scripts",
+    "skills"
   ],
   "exclude": [
     "./dts/${const_1.scriptingDtsFileName}"
@@ -151,6 +152,8 @@ function createTsConfig() {
         nextInclude.unshift('./dts/*.d.ts');
     if (!nextInclude.includes('scripts'))
         nextInclude.push('scripts');
+    if (!nextInclude.includes('skills'))
+        nextInclude.push('skills');
     const nextExclude = exclude.includes(`./dts/${const_1.scriptingDtsFileName}`)
         ? exclude
         : [...exclude, `./dts/${const_1.scriptingDtsFileName}`];
@@ -182,7 +185,7 @@ function ensureDirectoryExistence(filePath) {
         fs_1.default.mkdirSync(dirname, { recursive: true });
     }
 }
-async function writeDtsFiles(files) {
+async function writeDtsFiles(files, workspace = process.cwd()) {
     await Promise.all(Object.entries(files).map(async ([filename, content]) => {
         // These names arrive over the wire; only allow a plain `.d.ts` basename so
         // a crafted name can't escape the dts/ directory.
@@ -192,7 +195,7 @@ async function writeDtsFiles(files) {
             console.log(chalk_1.default.red(`Skipped writing dts file with unexpected name: ${filename}`));
             return;
         }
-        const filePath = getPath(`dts/${filename}`);
+        const filePath = path_1.default.join(workspace, 'dts', filename);
         ensureDirectoryExistence(filePath);
         await fs_1.default
             .promises
@@ -248,7 +251,7 @@ async function migrateOldFiles() {
         const list = await fs_1.default.promises.readdir(process.cwd());
         let hasMigrated = false;
         for (const file of list) {
-            if (file === 'dts' || file == "scripts" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules' || file.startsWith('.')) {
+            if (file === 'dts' || file == "scripts" || file === "skills" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules' || file.startsWith('.')) {
                 continue;
             }
             const filePath = path_1.default.join(process.cwd(), file);

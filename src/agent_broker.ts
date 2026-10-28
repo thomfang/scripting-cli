@@ -1,14 +1,16 @@
 import crypto from 'crypto';
+import { scriptMethod, wireMethod, scriptCapabilities, scriptError, scriptResult } from './dev_terms';
+import { snapshotSkill } from './skill_sync';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { AgentCommand, AgentError, failure, PROTOCOL_VERSION, snapshotProject, validateCommand, hash, MAX_IMAGE_BYTES, SourceSnapshot } from './agent_protocol';
+import { AgentCommand, AgentError, failure, PROTOCOL_VERSION, snapshotScript, validateCommand, hash, MAX_IMAGE_BYTES, SourceSnapshot } from './agent_protocol';
 
 type SocketPeer = { id: string; connected: boolean; on: (event: string, cb: (...args: any[]) => void) => unknown; emit: (event: string, ...args: any[]) => unknown; };
-interface Peer { socket: SocketPeer; metadata?: any; pending: Map<string, {request: any; resolve: (reply:any)=>void; reject: (error:Error)=>void}>; hooks: { project: () => string | null; ignore: () => string[]; pause: () => void; resume: (snapshot?: SourceSnapshot) => void; switchProject?: (project: string) => Promise<void>; types?: (files:Record<string,string>)=>Promise<void>; }; }
-interface Job { runId: string; requestId: string; deviceId: string; sessionId: string; project?: string; requestedRevision?: string; revision?: string; status: string; result?: any; error?: { code: string; message: string }; createdAt: number; cancellationRequested?: boolean; fingerprint: string; cancel?: () => void; }
-const mutations = ['run','widget','widget.batch','projects.create','projects.attach'];
-const projectChanges = ['projects.create','projects.attach'];
+interface Peer { socket: SocketPeer; metadata?: any; pending: Map<string, {request: any; resolve: (reply:any)=>void; reject: (error:Error)=>void}>; hooks: { script?: () => string | null; project?: () => string | null; ignore: () => string[]; pause: () => void; resume: (snapshot?: SourceSnapshot, bindingId?: string) => void; skill?: () => {name:string;bindingId:string;revision:string}|null; skillReady?: () => Promise<void>; switchScript?: (script: string) => Promise<void>; switchProject?: (project: string) => Promise<void>; types?: (files:Record<string,string>)=>Promise<void>; }; }
+interface Job { runId: string; requestId: string; deviceId: string; sessionId: string; script?: string; skill?: string; entry?: string; requestedRevision?: string; revision?: string; status: string; result?: any; error?: { code: string; message: string }; createdAt: number; cancellationRequested?: boolean; fingerprint: string; cancel?: () => void; }
+const mutations = ['run','widget','widget.batch','scripts.create','scripts.attach','skills.run'];
+const scriptChanges = ['scripts.create','scripts.attach'];
 interface JobEvent {seq:number;type:string;[key:string]:unknown;}
 const terminal = (s: string) => ['completed', 'failed', 'cancelled'].includes(s);
 export class AgentBroker {
@@ -25,12 +27,12 @@ export class AgentBroker {
       if (!meta || meta.protocolVersion !== 1 || typeof meta.deviceId !== 'string' || meta.deviceId.length > 128 || typeof meta.sessionId !== 'string' || meta.sessionId.length > 128 || !Array.isArray(meta.capabilities)) return;
       // Duplicate installation IDs remain ambiguous. A second socket must not
       // take over a connected device merely by claiming its identifier.
-      if (meta.capabilities.length > 16 || !meta.capabilities.every((value:any)=>typeof value==='string' && value.length<64)) return;
+      if (meta.capabilities.length > 32 || !meta.capabilities.every((value:any)=>typeof value==='string' && value.length<64)) return;
       if (peer.metadata && peer.metadata.sessionId !== meta.sessionId) this.invalidate(peer);
       peer.metadata = {protocolVersion:1,deviceId:meta.deviceId,sessionId:meta.sessionId,
         name:typeof meta.name==='string'?meta.name.slice(0,128):'Scripting device',
         appVersion:typeof meta.appVersion==='string'?meta.appVersion.slice(0,64):'',
-        capabilities:[...meta.capabilities],...this.statusFields(meta)};
+        capabilities:scriptCapabilities(meta.capabilities),...this.statusFields(meta)};
     });
     socket.on('agentResult', (reply: any) => {
       const pending = peer.pending.get(reply?.requestId);
@@ -43,7 +45,7 @@ export class AgentBroker {
     socket.on('agentTypes',async (data:any,ack:any)=>{
       try {
         const pending=peer.pending.get(data?.requestId);
-        if(!pending || !projectChanges.includes(pending.request.method) || pending.request.runId!==data.runId || pending.request.sessionId!==data.sessionId || peer.metadata?.sessionId!==data.sessionId || !hooks.types) throw new AgentError('invalid_request','No matching project admission.');
+        if(!pending || !scriptChanges.includes(scriptMethod(pending.request.method)) || pending.request.runId!==data.runId || pending.request.sessionId!==data.sessionId || peer.metadata?.sessionId!==data.sessionId || !hooks.types) throw new AgentError('invalid_request','No matching script admission.');
         const files=data.files;
         if(!files || typeof files!=='object' || Array.isArray(files) || Object.keys(files).length>16 || !files['scripting.d.ts'] || !files['global.d.ts'] || Object.entries(files).some(([name,content])=>!(/^[a-zA-Z0-9_-]+\.d\.ts$/.test(name))||typeof content!=='string') || Buffer.byteLength(JSON.stringify(files))>8*1024*1024) throw new AgentError('invalid_request','Invalid declaration bundle.');
         await hooks.types(files);if(typeof ack==='function')ack({success:true});
@@ -52,9 +54,9 @@ export class AgentBroker {
     socket.on('agentEvent', (event: any) => {
       const job=this.jobs.get(event?.runId),pending=peer.pending.get(event?.requestId);
       if (!job || !pending || terminal(job.status) || job.requestId!==event.requestId || job.sessionId!==event.sessionId || job.sessionId!==peer.metadata?.sessionId || pending.request.runId!==job.runId) return;
-      if (event.type==='stage' && ['syncing','compiling','running','waiting_ready','capturing','rendering','selecting_project'].includes(event.stage)) {
-        if (!job.cancellationRequested) job.status=event.stage;
-        this.event(job,'stage',{stage:event.stage,caseId:typeof event.caseId==='string'?event.caseId.slice(0,64):undefined});
+      if (event.type==='stage' && ['syncing','compiling','running','waiting_ready','capturing','rendering','selecting_project','selecting_script'].includes(event.stage)) {
+        if (!job.cancellationRequested) job.status=event.stage==='selecting_project'?'selecting_script':event.stage;
+        this.event(job,'stage',{stage:event.stage==='selecting_project'?'selecting_script':event.stage,caseId:typeof event.caseId==='string'?event.caseId.slice(0,64):undefined});
       } else if (event.type==='log' && typeof event.message==='string') {
         this.event(job,'log',{message:event.message.slice(0,8192),isError:event.isError===true,caseId:typeof event.caseId==='string'?event.caseId.slice(0,64):undefined});
       } else if(event.type==='diagnostic' && event.diagnostic && typeof event.diagnostic==='object' && Buffer.byteLength(JSON.stringify(event.diagnostic))<=8192) {
@@ -74,6 +76,7 @@ export class AgentBroker {
       job.status = 'failed'; job.error = { code: 'disconnected', message: 'Device disconnected. The command was not replayed.' }; job.cancel?.();
     }
   }
+  private selectedScript(peer: Peer) { return peer.hooks.script ? peer.hooks.script() : peer.hooks.project?.() ?? null; }
   private select(device?: string): Peer {
     const peers = [...this.peers.values()].filter(p => p.socket.connected && p.metadata);
     const found = device ? peers.filter(p => p.metadata.deviceId === device) : peers;
@@ -105,14 +108,17 @@ export class AgentBroker {
     this.prune();
     const command = validateCommand(raw); const peer = this.select(command.device);
     const mutation = mutations.includes(command.method);
-    const projectChange = projectChanges.includes(command.method);
+    const skillRun = command.method === 'skills.run';
+    const skill = peer.hooks.skill?.();
+    const scriptChange = scriptChanges.includes(command.method);
     const requestId = command.requestId || crypto.randomUUID();
     if (!peer.metadata.capabilities.includes(command.method)) throw new AgentError('unsupported_capability','This App does not support the command.');
+    if(skillRun && (!skill || skill.name!==command.skill || peer.metadata.skill!==skill.name || peer.metadata.skillBindingId!==skill.bindingId)) throw new AgentError('skill_mismatch','Select this skill in the App development page first.');
     if(command.options?.readyLog && !peer.metadata.capabilities.includes('ready-log') || command.options?.events && !peer.metadata.capabilities.includes('events-v1')) throw new AgentError('unsupported_capability','This App does not support ready-log or live events.');
-    if (mutation && !projectChange && (!peer.hooks.project() || peer.metadata.project !== peer.hooks.project())) throw new AgentError('debug_session_required', 'Open the current project in the App debug page first.');
-    const project = command.project ?? peer.hooks.project() ?? undefined;
-    if (mutation && !projectChange && project !== peer.hooks.project()) throw new AgentError('project_mismatch', 'Commands can only run the currently selected debug project.');
-    const fingerprint = hash(JSON.stringify({...command,project,device:peer.metadata.deviceId}));
+    if (mutation && !scriptChange && !skillRun && (!this.selectedScript(peer) || peer.metadata.script !== this.selectedScript(peer))) throw new AgentError('debug_session_required', 'Open the current script in the App debug page first.');
+    const script = command.script ?? this.selectedScript(peer) ?? undefined;
+    if (mutation && !scriptChange && !skillRun && script !== this.selectedScript(peer)) throw new AgentError('script_mismatch', 'Commands can only run the currently selected debug script.');
+    const fingerprint = hash(JSON.stringify({...command,script,device:peer.metadata.deviceId,...(skillRun ? {bindingId:skill?.bindingId} : {})}));
     const old = [...this.jobs.values()].find(j => j.requestId === requestId && j.sessionId === peer.metadata.sessionId);
     if (old) {
       if (old.fingerprint !== fingerprint) throw new AgentError('request_id_reused','A request ID cannot be reused for a different command.');
@@ -123,7 +129,7 @@ export class AgentBroker {
       const done = [...this.jobs.values()].find(j => terminal(j.status));
       if (done) { this.removeArtifact(done); this.jobs.delete(done.runId);this.eventLogs.delete(done.runId); } else throw new AgentError('busy', 'Too many outstanding requests.');
     }
-    const job: Job = { runId: crypto.randomUUID(), requestId, deviceId: peer.metadata.deviceId, sessionId: peer.metadata.sessionId, project: mutation ? project : undefined, status: 'accepted', createdAt: Date.now(), fingerprint };
+    const job: Job = { runId: crypto.randomUUID(), requestId, deviceId: peer.metadata.deviceId, sessionId: peer.metadata.sessionId, script: mutation && !skillRun ? script : undefined, skill: skillRun ? command.skill : undefined, entry: skillRun ? command.entry : undefined, status: 'accepted', createdAt: Date.now(), fingerprint };
     this.jobs.set(job.runId, job);
     this.event(job,'stage',{stage:'accepted'});
     job.cancel = () => peer.socket.emit('agentCancel', { runId: job.runId, sessionId: job.sessionId });
@@ -133,10 +139,13 @@ export class AgentBroker {
   private async execute(job: Job, peer: Peer, command: AgentCommand, mutation: boolean) {
     const deadline = Date.now() + (command.options?.timeout ?? 30) * 1000;
     let acknowledgedSnapshot: SourceSnapshot | undefined;
+    const skillRun = command.method === 'skills.run';
+    let skillBinding: ReturnType<NonNullable<Peer['hooks']['skill']>> = null;
     if (mutation) { this.activeMutations.add(job.deviceId); peer.hooks.pause(); }
     try {
-      if(command.method==='projects.create') this.scaffold(job.project!);
-      const snapshot = mutation && !command.options?.noSync ? await snapshotProject(this.workspace, job.project!, peer.hooks.ignore()) : undefined;
+      if(skillRun) {await peer.hooks.skillReady?.();skillBinding=peer.hooks.skill?.()??null;if(!skillBinding||skillBinding.name!==command.skill)throw new AgentError('skill_mismatch','The skill binding changed.');}
+      if(command.method==='scripts.create') this.scaffold(job.script!);
+      const snapshot = skillRun ? await snapshotSkill(this.workspace, command.skill!, peer.hooks.ignore()) : mutation && !command.options?.noSync ? await snapshotScript(this.workspace, job.script!, peer.hooks.ignore()) : undefined;
       if (terminal(job.status)) return;
       // Cancellation during local snapshot capture precedes native admission.
       // Do not send a later request after its cancellation event was ignored.
@@ -145,22 +154,23 @@ export class AgentBroker {
       }
       if (Date.now() >= deadline) throw new AgentError('execution_timeout','The command deadline expired while preparing source.');
       if (peer.metadata?.sessionId !== job.sessionId || !peer.socket.connected) throw new AgentError('disconnected', 'The session changed before execution.');
-      if (mutation && !projectChanges.includes(command.method) && peer.hooks.project() !== job.project) throw new AgentError('project_mismatch', 'The debug project changed.');
-      const request = { ...command, protocolVersion: 1, requestId: job.requestId, runId: job.runId, sessionId: job.sessionId, project: command.project ?? job.project, ignore:peer.hooks.ignore(), deadline, budgetMs: Math.max(1,deadline-Date.now()), snapshot };
+      if (mutation && !skillRun && !scriptChanges.includes(command.method) && this.selectedScript(peer) !== job.script) throw new AgentError('script_mismatch', 'The debug script changed.');
+      const request = { ...command, protocolVersion: 1, requestId: job.requestId, runId: job.runId, sessionId: job.sessionId, method:wireMethod(command.method), project: command.script ?? job.script, ignore:peer.hooks.ignore(), deadline, budgetMs: Math.max(1,deadline-Date.now()), snapshot, ...(skillRun ? {bindingId:skillBinding!.bindingId,baseRevision:skillBinding!.revision} : {}) };
       job.requestedRevision = snapshot?.revision; job.status = mutation ? 'syncing' : 'running';
       const reply = await this.call(peer, request, deadline + 3000);
       if (snapshot && reply.revision === snapshot.revision) acknowledgedSnapshot = snapshot;
       if (terminal(job.status)) return;
       if (!terminal(reply.status)) throw new AgentError('invalid_response', 'Device did not return a terminal result.');
       if (mutation && reply.status === 'completed' && (!reply.revision || (snapshot && reply.revision !== snapshot.revision))) throw new AgentError('invalid_response', 'Source revision did not match the applied snapshot.');
-      if(reply.status==='completed' && projectChanges.includes(command.method)) {
-        if(!peer.hooks.switchProject) throw new AgentError('unsupported_capability','Server cannot change projects.');
-        await peer.hooks.switchProject(job.project!);
+      if(reply.status==='completed' && scriptChanges.includes(command.method)) {
+        const selectScript=peer.hooks.switchScript??peer.hooks.switchProject;
+        if(!selectScript) throw new AgentError('unsupported_capability','Server cannot change scripts.');
+        await selectScript.call(peer.hooks,job.script!);
       }
-      job.result = this.storeArtifact(reply.result,job.runId);
-      job.status = reply.status; job.revision = reply.revision ?? job.revision; job.error = reply.error;
+      job.result = scriptResult(this.storeArtifact(reply.result,job.runId));
+      job.status = reply.status; job.revision = reply.revision ?? job.revision; job.error = scriptError(reply.error);
     } catch (e) { if (!terminal(job.status)) { job.status = 'failed'; job.error = failure(e); job.cancel?.(); } }
-    finally { if (mutation) { peer.hooks.resume(acknowledgedSnapshot); this.activeMutations.delete(job.deviceId); } job.cancel = undefined;this.event(job,'stage',{stage:job.status}); }
+    finally { if (mutation) { peer.hooks.resume(acknowledgedSnapshot, skillRun ? skillBinding?.bindingId : undefined); this.activeMutations.delete(job.deviceId); } job.cancel = undefined;this.event(job,'stage',{stage:job.status}); }
   }
   get(id: string) { this.prune(); const job = this.jobs.get(id); if (!job) throw new AgentError('job_not_found', 'Unknown or expired run ID.'); return this.publicJob(job); }
   cancel(id: string) { const job = this.jobs.get(id); if (!job) throw new AgentError('job_not_found', 'Unknown run ID.'); if (!terminal(job.status)) { job.cancellationRequested = true; job.status = 'cancelling';this.event(job,'stage',{stage:'cancelling'}); job.cancel?.(); } return this.publicJob(job); }
@@ -174,7 +184,10 @@ export class AgentBroker {
   private statusFields(value:any): any {
     if (!value || typeof value!=='object') return {};
     return {
-      project:typeof value.project==='string'?value.project.slice(0,255):null,
+      skill:typeof value.skill==='string'?value.skill.slice(0,255):null,
+      skillBindingId:typeof value.skillBindingId==='string'?value.skillBindingId.slice(0,128):null,
+      skillRevision:typeof value.skillRevision==='string'?value.skillRevision:null,
+      script:typeof (value.script??value.project)==='string'?(value.script??value.project).slice(0,255):null,
       appState:['foreground','background','inactive'].includes(value.appState)?value.appState:'unknown',
       busy:value.busy===true,revision:typeof value.revision==='string'&&/^[a-f0-9]{64}$/.test(value.revision)?value.revision:null,
       activeRunId:typeof value.activeRunId==='string'?value.activeRunId.slice(0,128):null,
@@ -218,11 +231,11 @@ export class AgentBroker {
     const events=log?.events.filter(e=>e.seq>after)??[];
     return {events,nextCursor:log?.sequence??0,truncated:!!log?.events.length&&after<log.events[0].seq-1,terminal:terminal(job.status),logsTruncated:log?.droppedLogs===true};
   }
-  private scaffold(project:string) {
-    const root=path.join(this.workspace,'scripts',project);
+  private scaffold(script:string) {
+    const root=path.join(this.workspace,'scripts',script);
     if(fs.existsSync(root))return;
     fs.mkdirSync(root,{recursive:false});
-    fs.writeFileSync(path.join(root,'script.json'),JSON.stringify({name:project,version:'1.0.0',icon:'curlybraces',color:'systemBlue'},null,2),{flag:'wx'});
+    fs.writeFileSync(path.join(root,'script.json'),JSON.stringify({name:script,version:'1.0.0',icon:'curlybraces',color:'systemBlue'},null,2),{flag:'wx'});
     fs.writeFileSync(path.join(root,'index.tsx'),'import { Script } from "scripting"\nScript.exit({ message: "Hello Scripting" })\n',{flag:'wx'});
   }
 

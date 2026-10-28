@@ -45,7 +45,7 @@ test('snapshot includes binary/unicode files, ignores configured/default paths, 
 });
 test('snapshot rejects traversal, symlinks and oversized files',async t=>{
   const root=fixture(t),project=path.join(root,'scripts','Fixture');
-  await assert.rejects(snapshotProject(root,'../bad',[]),e=>e.code==='invalid_project');
+  await assert.rejects(snapshotProject(root,'../bad',[]),e=>e.code==='invalid_script');
   fs.symlinkSync(os.tmpdir(),path.join(project,'escape'));
   await assert.rejects(snapshotProject(root,'Fixture',[]),e=>e.code==='invalid_path');fs.unlinkSync(path.join(project,'escape'));
   fs.writeFileSync(path.join(project,'huge'),Buffer.alloc(8*1024*1024+1));
@@ -58,7 +58,7 @@ test('multiple devices require explicit choice and project mismatch cannot execu
   const broker=new AgentBroker(fixture(t));t.after(()=>broker.close());device(broker);device(broker);
   assert.throws(()=>broker.submit({method:'docs.search'}),e=>e.code==='device_ambiguous');
   const single=new AgentBroker(fixture(t));t.after(()=>single.close());device(single);
-  assert.throws(()=>single.submit({method:'run',project:'Other'}),e=>e.code==='project_mismatch');
+  assert.throws(()=>single.submit({method:'run',project:'Other'}),e=>e.code==='script_mismatch');
 });
 test('run transfers a complete revision and preserves result identity; repeated request does not run twice',async t=>{
   const broker=new AgentBroker(fixture(t));t.after(()=>broker.close());
@@ -235,11 +235,11 @@ test('widget batches reject unsafe/duplicate IDs and preserve named image output
 test('project creation and replacement only switch the watcher after native success',async t=>{
   const root=fixture(t),broker=new AgentBroker(root);t.after(()=>broker.close());let succeed=false;
   const peer=device(broker,undefined,(request,reply)=>queueMicrotask(()=>reply(succeed?{status:'completed',revision:request.snapshot.revision,result:{project:request.project}}:{status:'failed',result:{currentRevision:'a'.repeat(64)},error:{code:'project_conflict',message:'Inspect first.'}})));
-  const failed=await finished(broker,broker.submit({method:'projects.attach',project:'Fixture'}).runId);assert.equal(failed.error.code,'project_conflict');assert.equal(peer.state.project,'Fixture');
+  const failed=await finished(broker,broker.submit({method:'projects.attach',project:'Fixture'}).runId);assert.equal(failed.error.code,'script_conflict');assert.equal(peer.state.project,'Fixture');
   succeed=true;const created=await finished(broker,broker.submit({method:'projects.create',project:'New Project'}).runId);
   assert.equal(created.status,'completed');assert.equal(peer.state.project,'New Project');
   assert.equal(JSON.parse(fs.readFileSync(path.join(root,'scripts','New Project','script.json'))).name,'New Project');
-  for(const project of ['../bad','.hidden','bad:name'])assert.throws(()=>broker.submit({method:'projects.create',project}),e=>e.code==='invalid_project');
+  for(const project of ['../bad','.hidden','bad:name'])assert.throws(()=>broker.submit({method:'projects.create',project}),e=>e.code==='invalid_script');
 });
 test('actual stream CLI emits live JSONL before completion, then one final structured result',async t=>{
   const root=fixture(t),broker=new AgentBroker(root),control=await startAgentControl(broker);t.after(()=>control.close());
@@ -273,4 +273,26 @@ test('a stopped local control service reports unavailable without replaying an e
   const broker=new AgentBroker(fixture(t)),control=await startAgentControl(broker);
   await control.close();
   await assert.rejects(controlRequest(control.state,'/v1/info'),e=>e.code==='control_unavailable');
+});
+
+test('script vocabulary is canonical while protocol-v1 inputs remain compatible',()=>{
+ const {validateCommand}=require('../dist/agent_protocol');
+ const canonical=validateCommand({method:'scripts.inspect',script:'Fixture'}),legacy=validateCommand({method:'projects.inspect',project:'Fixture'});
+ assert.deepEqual(canonical,legacy);assert.equal('project' in canonical,false);
+ assert.throws(()=>validateCommand({method:'scripts.inspect',script:'Fixture',project:'Other'}),e=>e.code==='invalid_request');
+ const {scriptResult,scriptError}=require('../dist/dev_terms');
+ const result=scriptResult({project:'Fixture',projects:['Fixture'],currentProject:'Fixture',completionReason:'project_attached',value:{project:'user-owned'}});
+ assert.equal(result.script,'Fixture');assert.deepEqual(result.scripts,['Fixture']);assert.equal(result.currentScript,'Fixture');assert.equal(result.completionReason,'script_attached');assert.equal('project' in result,false);assert.equal(result.value.project,'user-owned');
+ assert.equal(scriptError({code:'project_conflict',message:'App project changed.'}).code,'script_conflict');
+});
+test('canonical scripts commands and status output hide legacy wire names',async t=>{
+ const root=fixture(t),broker=new AgentBroker(root),control=await startAgentControl(broker);t.after(()=>control.close());
+ const peer=device(broker,undefined,(request,reply)=>queueMicrotask(()=>reply({status:'completed',result:{project:request.project??'Fixture',projects:['Fixture'],currentProject:'Fixture'}})));
+ const run=async(args)=>new Promise((resolve,reject)=>{const child=require('node:child_process').spawn(process.execPath,[path.resolve(__dirname,'../dist/cli.js'),...args],{cwd:root});let stdout='',stderr='';child.stdout.on('data',v=>stdout+=v);child.stderr.on('data',v=>stderr+=v);child.on('error',reject);child.on('close',code=>resolve({code,stdout,stderr}));});
+ for(const command of [['scripts','inspect','Fixture','--json'],['projects','inspect','Fixture','--json'],['status','--json']]){
+  const result=await run(command);assert.equal(result.code,0,result.stderr+result.stdout);const value=JSON.parse(result.stdout);assert.equal(value.result.script,'Fixture');assert.ok(!('project' in value.result));assert.ok(!('project' in value));
+ }
+ const devices=await broker.devices();assert.equal(devices[0].script,'Fixture');assert.ok(!('project' in devices[0]));assert.ok(devices[0].capabilities.includes('scripts.inspect'));assert.ok(!devices[0].capabilities.some(c=>c.startsWith('projects.')));
+ assert.ok(peer.state.requests.some(r=>r.method==='projects.inspect'));
+ const help=await run(['--help']);assert.equal(help.code,0);assert.ok(help.stdout.includes('scripts <action>'));assert.ok(!/\bprojects?\b/i.test(help.stdout));
 });

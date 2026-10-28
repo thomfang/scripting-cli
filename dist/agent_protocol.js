@@ -3,15 +3,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.methods = exports.hash = exports.AgentError = exports.widgetFamilies = exports.MAX_IMAGE_BYTES = exports.MAX_FILES = exports.MAX_SOURCE_BYTES = exports.PROTOCOL_VERSION = void 0;
+exports.validProjectName = exports.snapshotProject = exports.snapshotScript = exports.methods = exports.hash = exports.AgentError = exports.widgetFamilies = exports.MAX_IMAGE_BYTES = exports.MAX_FILES = exports.MAX_SOURCE_BYTES = exports.PROTOCOL_VERSION = void 0;
 exports.validateCommand = validateCommand;
-exports.validProjectName = validProjectName;
+exports.validPackageName = validPackageName;
 exports.safeRelativePath = safeRelativePath;
 exports.revisionForFiles = revisionForFiles;
-exports.snapshotProject = snapshotProject;
+exports.snapshotSource = snapshotSource;
 exports.failure = failure;
 exports.isAcknowledgedChange = isAcknowledgedChange;
 const fs_1 = __importDefault(require("fs"));
+const dev_terms_1 = require("./dev_terms");
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
 const util_1 = require("./util");
@@ -30,11 +31,17 @@ class AgentError extends Error {
 exports.AgentError = AgentError;
 const hash = (bytes) => crypto_1.default.createHash('sha256').update(bytes).digest('hex');
 exports.hash = hash;
-exports.methods = ['status', 'docs.search', 'docs.get', 'api.get', 'run', 'widget', 'widget.batch', 'projects.list', 'projects.inspect', 'projects.create', 'projects.attach'];
+exports.methods = ['status', 'docs.search', 'docs.get', 'api.get', 'run', 'widget', 'widget.batch', 'scripts.list', 'scripts.inspect', 'scripts.create', 'scripts.attach', 'skills.run'];
 function validateCommand(value) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        if (value.script !== undefined && value.project !== undefined && value.script !== value.project)
+            throw new AgentError('invalid_request', 'Conflicting script names.');
+        const { project, ...canonical } = value;
+        value = { ...canonical, method: typeof value.method === 'string' ? (0, dev_terms_1.scriptMethod)(value.method) : value.method, script: value.script ?? project };
+    }
     if (!value || typeof value !== 'object' || Array.isArray(value) || !exports.methods.includes(value.method))
         throw new AgentError('invalid_request', 'Unknown command.');
-    for (const key of ['device', 'project', 'query', 'docId', 'symbol', 'requestId']) {
+    for (const key of ['device', 'script', 'query', 'docId', 'symbol', 'requestId', 'skill', 'entry']) {
         if (value[key] !== undefined && (typeof value[key] !== 'string' || value[key].length > 1024))
             throw new AgentError('invalid_request', `Invalid ${key}.`);
     }
@@ -49,7 +56,7 @@ function validateCommand(value) {
     const o = value.options ?? {};
     if (!o || typeof o !== 'object' || Array.isArray(o))
         throw new AgentError('invalid_request', 'Invalid options.');
-    for (const k of ['screenshot', 'noSync', 'replace', 'events'])
+    for (const k of ['screenshot', 'noSync', 'replace', 'events', 'check'])
         if (o[k] !== undefined && typeof o[k] !== 'boolean')
             throw new AgentError('invalid_request', `Invalid ${k}.`);
     if (o.timeout !== undefined && (!Number.isFinite(o.timeout) || o.timeout < 1 || o.timeout > 120))
@@ -66,8 +73,8 @@ function validateCommand(value) {
         throw new AgentError('invalid_request', 'Ready log requires script screenshot mode and one exact line.');
     if (o.expectedRevision !== undefined && (typeof o.expectedRevision !== 'string' || !/^[a-f0-9]{64}$/.test(o.expectedRevision)))
         throw new AgentError('invalid_request', 'Invalid expected revision.');
-    if (value.method.startsWith('projects.') && value.method !== 'projects.list' && !validProjectName(value.project))
-        throw new AgentError('invalid_project', 'A safe project name is required.');
+    if (value.method.startsWith('scripts.') && value.method !== 'scripts.list' && !validPackageName(value.script))
+        throw new AgentError('invalid_script', 'A safe script name is required.');
     if (value.method === 'widget.batch') {
         if (!Array.isArray(o.cases) || o.cases.length < 1 || o.cases.length > 8)
             throw new AgentError('invalid_request', 'Supply 1...8 widget cases.');
@@ -78,22 +85,24 @@ function validateCommand(value) {
             ids.add(c.id);
         }
     }
+    if (value.method === 'skills.run' && (!validPackageName(value.skill) || typeof value.entry !== 'string' || !safeRelativePath(value.entry) || !/\.tsx?$/.test(value.entry) || o.screenshot || o.readyLog || o.noSync))
+        throw new AgentError('invalid_request', 'Specify a skill name and a skill-relative .ts/.tsx entry.');
     return { ...value, options: o };
 }
-function validProjectName(value) { return typeof value === 'string' && value.length > 0 && Buffer.byteLength(value) < 256 && value !== '.' && value !== '..' && !value.startsWith('.') && !/[\/\\:\x00-\x1f\x7f]/.test(value); }
+function validPackageName(value) { return typeof value === 'string' && value.length > 0 && Buffer.byteLength(value) < 256 && value !== '.' && value !== '..' && !value.startsWith('.') && !/[\/\\:\x00-\x1f\x7f]/.test(value); }
 function safeRelativePath(value) {
     return Buffer.byteLength(value) > 0 && Buffer.byteLength(value) < 1024 && !/[\\:\x00-\x1f\x7f]/.test(value) && !path_1.default.posix.isAbsolute(value) && value.split('/').length <= 32 && value.split('/').every(p => !!p && p !== '.' && p !== '..');
 }
 function revisionForFiles(files) {
     return (0, exports.hash)([...files].sort((a, b) => Buffer.compare(Buffer.from(a.path), Buffer.from(b.path))).map(f => `${f.path}\0${f.sha256}\n`).join(''));
 }
-async function snapshotProject(workspace, project, ignore) {
-    if (!validProjectName(project))
-        throw new AgentError('invalid_project', 'Invalid project name.');
-    const root = path_1.default.join(workspace, 'scripts', project);
-    const scripts = await fs_1.default.promises.realpath(path_1.default.join(workspace, 'scripts'));
-    if ((await fs_1.default.promises.realpath(root)) !== path_1.default.join(scripts, project) || (await fs_1.default.promises.lstat(root)).isSymbolicLink())
-        throw new AgentError('invalid_project', 'Project symlinks are unsupported.');
+async function snapshotSource(workspace, name, ignore, kind = 'scripts') {
+    if (!validPackageName(name))
+        throw new AgentError(kind === 'skills' ? 'invalid_skill' : 'invalid_script', 'Invalid source name.');
+    const root = path_1.default.join(workspace, kind, name);
+    const scripts = await fs_1.default.promises.realpath(path_1.default.join(workspace, kind));
+    if ((await fs_1.default.promises.realpath(root)) !== path_1.default.join(scripts, name) || (await fs_1.default.promises.lstat(root)).isSymbolicLink())
+        throw new AgentError('invalid_path', 'Source symlinks are unsupported.');
     const files = [];
     let bytes = 0;
     const stamps = [];
@@ -152,16 +161,20 @@ async function snapshotProject(workspace, project, ignore) {
     }
     return { files, revision: revisionForFiles(files), ignore: [...ignore] };
 }
+exports.snapshotScript = snapshotSource;
+/** @deprecated Protocol-v1 compatibility exports. */
+exports.snapshotProject = snapshotSource;
+exports.validProjectName = validPackageName;
 function failure(error) {
-    return { code: error instanceof AgentError ? error.code : 'internal_error', message: error instanceof Error ? error.message : String(error) };
+    return (0, dev_terms_1.scriptError)({ code: error instanceof AgentError ? error.code : 'internal_error', message: error instanceof Error ? error.message : String(error) });
 }
 /** A delayed watcher notification for bytes already applied by this job must
  * not trigger a second automatic run. Changes made after the snapshot remain. */
-function isAcknowledgedChange(workspace, project, relative, snapshot) {
+function isAcknowledgedChange(workspace, script, relative, snapshot) {
     if (!safeRelativePath(relative))
         return false;
     const expected = snapshot.files.find(file => file.path === relative);
-    const file = path_1.default.join(workspace, 'scripts', project, relative);
+    const file = path_1.default.join(workspace, 'scripts', script, relative);
     if (!fs_1.default.existsSync(file))
         return expected === undefined;
     if (!expected || fs_1.default.lstatSync(file).isSymbolicLink() || !fs_1.default.statSync(file).isFile())

@@ -26,6 +26,7 @@ export interface WidgetCase {
     screenshot: boolean;
 }
 export interface AgentOptions {
+    check?: boolean;
     events?: boolean;
     readyLog?: string;
     cases?: WidgetCase[];
@@ -42,7 +43,10 @@ export interface AgentOptions {
 export interface AgentCommand {
     method: string;
     device?: string;
+    script?: string; /** @deprecated Compatibility input for protocol-v1 clients. */
     project?: string;
+    skill?: string;
+    entry?: string;
     options?: AgentOptions;
     query?: string;
     docId?: string;
@@ -53,14 +57,15 @@ export interface AgentCommand {
 }
 export declare const methods: string[];
 export declare function validateCommand(value: any): AgentCommand;
-export declare function validProjectName(value: unknown): value is string;
+export declare function validPackageName(value: unknown): value is string;
 export declare function safeRelativePath(value: string): boolean;
 export declare function revisionForFiles(files: Pick<SourceFile, 'path' | 'sha256'>[]): string;
-export declare function snapshotProject(workspace: string, project: string, ignore: string[]): Promise<SourceSnapshot>;
-export declare function failure(error: unknown): {
-    code: string;
-    message: string;
-};
+export declare function snapshotSource(workspace: string, name: string, ignore: string[], kind?: 'scripts' | 'skills'): Promise<SourceSnapshot>;
+export declare const snapshotScript: typeof snapshotSource;
+/** @deprecated Protocol-v1 compatibility exports. */
+export declare const snapshotProject: typeof snapshotSource;
+export declare const validProjectName: typeof validPackageName;
+export declare function failure(error: unknown): any;
 /** A delayed watcher notification for bytes already applied by this job must
  * not trigger a second automatic run. Changes made after the snapshot remain. */
-export declare function isAcknowledgedChange(workspace: string, project: string, relative: string, snapshot: SourceSnapshot): boolean;
+export declare function isAcknowledgedChange(workspace: string, script: string, relative: string, snapshot: SourceSnapshot): boolean;

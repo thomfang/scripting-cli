@@ -9,6 +9,7 @@ import { globalDtsFileName, scriptingDtsFileName } from './const';
 import { openFileInEditor } from './editors';
 import { ResolvedConfig } from './types';
 import { agentBroker } from './agent_broker';
+import { SkillSyncController } from './skill_sync';
 import { isAcknowledgedChange } from './agent_protocol';
 
 export class Controller {
@@ -33,6 +34,7 @@ export class Controller {
     this.socket?.emit(event, data);
   }
 
+  readonly skillSync: SkillSyncController;
   watcher: FSWatcher | null = null;
   scriptName: string | null = null;
   socket: Socket | null = null;
@@ -41,9 +43,15 @@ export class Controller {
   constructor(socket: Socket, config: ResolvedConfig) {
     this.config = config;
     this.socket = socket;
+    this.skillSync = new SkillSyncController(socket, process.cwd(), config.ignore, async () => {
+      if (this.agentPauses) throw new Error('A desktop run is active.');
+      await this.watcher?.close(); this.watcher = null; this.scriptName = null; this.pendingAgentChanges.clear();
+    });
 
     agentBroker.register(socket, {
-      project: () => this.scriptName,
+      script: () => this.scriptName,
+      skill: () => this.skillSync.selected(),
+      skillReady: () => this.skillSync.drain(),
       types: async files => {
         const directory=path.join(process.cwd(),'dts');
         if(fs.existsSync(directory)&&fs.lstatSync(directory).isSymbolicLink())throw new Error('Type directory cannot be a symlink.');
@@ -51,13 +59,14 @@ export class Controller {
         await writeDtsFiles(files);
         for(const [name,value] of Object.entries(files))if(fs.readFileSync(path.join(directory,name),'utf8')!==value)throw new Error('Type declarations were not written.');
       },
-      switchProject: async project => {
+      switchScript: async script => {
         await this.watcher?.close();this.watcher=null;this.pendingAgentChanges.clear();
-        this.scriptName=project;this.createWatcher(project,true);
+        this.scriptName=script;this.createWatcher(script,true);
       },
       ignore: () => this.config.ignore,
-      pause: () => { this.agentPauses++; },
-      resume: snapshot => {
+      pause: () => { this.agentPauses++; this.skillSync.pause(); },
+      resume: (snapshot, bindingId) => {
+        this.skillSync.resume(bindingId === this.skillSync.selected()?.bindingId ? snapshot : undefined);
         this.agentPauses = Math.max(0, this.agentPauses - 1);
         if (!this.agentPauses) {
           for (const { event, data } of this.pendingAgentChanges.values()) {
@@ -85,6 +94,7 @@ export class Controller {
     socket.on('disconnect', (reason) => {
       console.log(chalk.gray(`Client [${socket.id}] disconnected: ${reason}`));
       this.watcher?.close();
+      void this.skillSync.close();
       this.watcher = null;
       this.scriptName = null;
       Controller.instances.delete(socket.id);
@@ -173,6 +183,7 @@ export class Controller {
 
     try {
       if (this.agentPauses) { ack({ error: 'A desktop run is active.' }); return; }
+      await this.skillSync.stop();
       if (data.scriptName === this.scriptName) {
         ack({
           error: `Script [${data.scriptName}] is already initialized`,
@@ -252,6 +263,7 @@ export class Controller {
   }) => void) => {
     try {
       if (this.agentPauses) { ack({ error: 'A desktop run is active.' }); return; }
+      await this.skillSync.stop();
       if (this.scriptName === data.scriptName) {
         ack({
           error: `Script ${data.scriptName} is already initialized`,

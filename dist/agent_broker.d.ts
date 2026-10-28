@@ -14,10 +14,18 @@ interface Peer {
         reject: (error: Error) => void;
     }>;
     hooks: {
-        project: () => string | null;
+        script?: () => string | null;
+        project?: () => string | null;
         ignore: () => string[];
         pause: () => void;
-        resume: (snapshot?: SourceSnapshot) => void;
+        resume: (snapshot?: SourceSnapshot, bindingId?: string) => void;
+        skill?: () => {
+            name: string;
+            bindingId: string;
+            revision: string;
+        } | null;
+        skillReady?: () => Promise<void>;
+        switchScript?: (script: string) => Promise<void>;
         switchProject?: (project: string) => Promise<void>;
         types?: (files: Record<string, string>) => Promise<void>;
     };
@@ -27,7 +35,9 @@ interface Job {
     requestId: string;
     deviceId: string;
     sessionId: string;
-    project?: string;
+    script?: string;
+    skill?: string;
+    entry?: string;
     requestedRevision?: string;
     revision?: string;
     status: string;
@@ -56,6 +66,7 @@ export declare class AgentBroker {
     constructor(workspace: string);
     register(socket: SocketPeer, hooks: Peer['hooks']): void;
     private invalidate;
+    private selectedScript;
     private select;
     private call;
     devices(): Promise<any[]>;

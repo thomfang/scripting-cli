@@ -2,6 +2,7 @@ import { FSWatcher } from 'chokidar';
 import { Socket } from 'socket.io';
 import { globalDtsFileName, scriptingDtsFileName } from './const';
 import { ResolvedConfig } from './types';
+import { SkillSyncController } from './skill_sync';
 export declare class Controller {
     private static instances;
     static create(socket: Socket, config: ResolvedConfig): Controller;
@@ -9,6 +10,7 @@ export declare class Controller {
     private agentPauses;
     private pendingAgentChanges;
     private sendChange;
+    readonly skillSync: SkillSyncController;
     watcher: FSWatcher | null;
     scriptName: string | null;
     socket: Socket | null;

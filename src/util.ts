@@ -109,7 +109,8 @@ export function createTsConfig() {
   },
   "include": [
     "./dts/*.d.ts",
-    "scripts"
+    "scripts",
+    "skills"
   ],
   "exclude": [
     "./dts/${scriptingDtsFileName}"
@@ -139,6 +140,7 @@ export function createTsConfig() {
   let nextInclude = include.filter((x) => x !== `./dts/${globalDtsFileName}`);
   if (!nextInclude.includes('./dts/*.d.ts')) nextInclude.unshift('./dts/*.d.ts');
   if (!nextInclude.includes('scripts')) nextInclude.push('scripts');
+  if (!nextInclude.includes('skills')) nextInclude.push('skills');
 
   const nextExclude = exclude.includes(`./dts/${scriptingDtsFileName}`)
     ? exclude
@@ -174,7 +176,7 @@ export function ensureDirectoryExistence(filePath: string) {
   }
 }
 
-export async function writeDtsFiles(files: Record<string, string>) {
+export async function writeDtsFiles(files: Record<string, string>, workspace = process.cwd()) {
   await Promise.all(
     Object.entries(files).map(async ([filename, content]) => {
       // These names arrive over the wire; only allow a plain `.d.ts` basename so
@@ -185,7 +187,7 @@ export async function writeDtsFiles(files: Record<string, string>) {
         console.log(chalk.red(`Skipped writing dts file with unexpected name: ${filename}`));
         return;
       }
-      const filePath = getPath(`dts/${filename}`);
+      const filePath = path.join(workspace, 'dts', filename);
       ensureDirectoryExistence(filePath);
       await
         fs
@@ -246,7 +248,7 @@ export async function migrateOldFiles() {
 
     for (const file of list) {
 
-      if (file === 'dts' || file == "scripts" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules' || file.startsWith('.')) {
+      if (file === 'dts' || file == "scripts" || file === "skills" || file === 'tsconfig.json' || file === 'package.json' || file === 'node_modules' || file.startsWith('.')) {
         continue;
       }
 

@@ -53,14 +53,14 @@ async function invokeAgentCommand(command, output, json, stream = false) {
         process.removeListener('SIGINT', cancel);
     }
 }
-function common(y) {
-    return y.option('device', { type: 'string', describe: 'Target device ID; required when several devices are connected' })
-        .option('json', { type: 'boolean', default: false, describe: 'Print one JSON result' })
-        .option('output', { type: 'string', default: 'artifacts', describe: 'Screenshot output directory' });
+function common(y, screenshots = true) {
+    const options = y.option('device', { type: 'string', describe: 'Target device ID; required when several devices are connected' })
+        .option('json', { type: 'boolean', default: false, describe: 'Print one JSON result' });
+    return screenshots ? options.option('output', { type: 'string', default: 'artifacts', describe: 'Screenshot output directory' }) : options;
 }
-function streaming(y) { return common(y).option('stream', { type: 'boolean', default: false, describe: 'Print progress/log/diagnostic JSONL events and one final result' }); }
+function streaming(y, screenshots = true) { return common(y, screenshots).option('stream', { type: 'boolean', default: false, describe: 'Print progress/log/diagnostic JSONL events and one final result' }); }
 function runOptions(y, script = true) {
-    const options = streaming(y).positional('project', { type: 'string', describe: 'Currently selected App debug project' })
+    const options = streaming(y).positional('script', { type: 'string', describe: 'Currently selected App debug script' })
         .option('screenshot', { type: 'boolean', default: false })
         .option('timeout', { type: 'number', default: 30, describe: 'Overall run deadline in seconds, 1...120' })
         .option('no-sync', { type: 'boolean', default: false, describe: 'Use the last acknowledged App revision' });
@@ -78,6 +78,8 @@ const handler = (build) => async (a) => {
         process.exitCode = 1;
     }
 };
+function scriptOptions(y) { return streaming(y).usage('$0 scripts <action> [name]').positional('action', { choices: ['list', 'inspect', 'create', 'attach'] }).positional('name', { type: 'string' }).option('replace', { type: 'boolean', default: false }).option('expected-revision', { type: 'string' }).option('timeout', { type: 'number', default: 30 }); }
+const scriptHandler = handler(a => ({ method: `scripts.${a.action}`, device: a.device, script: a.name, options: { replace: a.replace, expectedRevision: a.expectedRevision, timeout: a.timeout } }));
 function installAgentCommands(y) {
     return y.command('skill', 'Print the portable Scripting development SKILL.md', () => { }, () => console.log(fs_1.default.readFileSync(path_1.default.join(__dirname, '../skills/scripting-development/SKILL.md'), 'utf8'))).command('devices', 'List connected devices and their current responsiveness', common, async (a) => {
         try {
@@ -91,16 +93,18 @@ function installAgentCommands(y) {
     }).command('status', 'Query the selected App debug session', y => streaming(y), handler(a => ({ method: 'status', device: a.device })))
         .command('docs <action> [value]', 'Search docs or read a returned document ID', y => streaming(y).positional('action', { choices: ['search', 'get'] }).positional('value', { type: 'string' }).option('lang', { choices: ['en', 'zh'], default: 'en' }).option('limit', { type: 'number', default: 20 }), handler(a => ({ method: a.action === 'search' ? 'docs.search' : 'docs.get', device: a.device, query: a.action === 'search' ? a.value : undefined, docId: a.action === 'get' ? a.value : undefined, lang: a.lang, limit: a.limit })))
         .command('api <action> <symbol>', 'Read an exact Scripting API declaration', y => streaming(y).positional('action', { choices: ['get'] }).positional('symbol', { type: 'string' }), handler(a => ({ method: 'api.get', device: a.device, symbol: a.symbol })))
-        .command('run [project]', 'Sync and execute the current debug project', y => runOptions(y), handler(a => ({ method: 'run', device: a.device, project: a.project, options: { screenshot: a.screenshot, captureAfter: a.captureAfter, readyLog: a.readyLog, timeout: a.timeout, noSync: a['no-sync'], queryParameters: a['query-parameters'] ? JSON.parse(a['query-parameters']) : undefined } })))
-        .command('widget [project]', 'Render the current project widget and close its preview', y => runOptions(y, false).option('family', { type: 'string', default: 'systemSmall' }).option('parameter', { type: 'string' }), handler(a => ({ method: 'widget', device: a.device, project: a.project, options: { screenshot: a.screenshot, timeout: a.timeout, noSync: a['no-sync'], family: a.family, parameter: a.parameter } })))
-        .command('widget-batch [project]', 'Render 1...8 widget cases from a JSON file', y => streaming(y).positional('project', { type: 'string' }).option('timeout', { type: 'number', default: 30 }).option('no-sync', { type: 'boolean', default: false }).option('cases', { type: 'string', demandOption: true }), handler(a => {
+        .command('run [script]', 'Sync and execute the current debug script', y => runOptions(y), handler(a => ({ method: 'run', device: a.device, script: a.script, options: { screenshot: a.screenshot, captureAfter: a.captureAfter, readyLog: a.readyLog, timeout: a.timeout, noSync: a['no-sync'], queryParameters: a['query-parameters'] ? JSON.parse(a['query-parameters']) : undefined } })))
+        .command('widget [script]', 'Render the current script widget and close its preview', y => runOptions(y, false).option('family', { type: 'string', default: 'systemSmall' }).option('parameter', { type: 'string' }), handler(a => ({ method: 'widget', device: a.device, script: a.script, options: { screenshot: a.screenshot, timeout: a.timeout, noSync: a['no-sync'], family: a.family, parameter: a.parameter } })))
+        .command('widget-batch [script]', 'Render 1...8 widget cases from a JSON file', y => streaming(y).positional('script', { type: 'string' }).option('timeout', { type: 'number', default: 30 }).option('no-sync', { type: 'boolean', default: false }).option('cases', { type: 'string', demandOption: true }), handler(a => {
         const stat = fs_1.default.statSync(a.cases);
         if (stat.size > 128 * 1024)
             throw new agent_protocol_1.AgentError('invalid_request', 'Case manifest exceeds 128 KiB.');
         const cases = JSON.parse(fs_1.default.readFileSync(a.cases, 'utf8'));
-        return { method: 'widget.batch', device: a.device, project: a.project, options: { timeout: a.timeout, noSync: a['no-sync'], cases } };
+        return { method: 'widget.batch', device: a.device, script: a.script, options: { timeout: a.timeout, noSync: a['no-sync'], cases } };
     }))
-        .command('projects <action> [name]', 'List, inspect, create or attach an App project', y => streaming(y).positional('action', { choices: ['list', 'inspect', 'create', 'attach'] }).positional('name', { type: 'string' }).option('replace', { type: 'boolean', default: false }).option('expected-revision', { type: 'string' }).option('timeout', { type: 'number', default: 30 }), handler(a => ({ method: `projects.${a.action}`, device: a.device, project: a.name, options: { replace: a.replace, expectedRevision: a.expectedRevision, timeout: a.timeout } })))
+        .command('scripts <action> [name]', 'List, inspect, create or attach an App script', scriptOptions, scriptHandler)
+        .command('projects <action> [name]', false, scriptOptions, scriptHandler)
+        .command('skills run <name> <entry>', 'Sync and test a .ts/.tsx entry in the selected App skill', y => streaming(y, false).positional('name', { type: 'string', demandOption: true }).positional('entry', { type: 'string', demandOption: true }).option('check', { type: 'boolean', default: false, describe: 'Check TypeScript without executing the entry' }).option('timeout', { type: 'number', default: 30 }).option('query-parameters', { type: 'string', describe: 'JSON object passed to the skill script' }), handler(a => ({ method: 'skills.run', device: a.device, skill: a.name, entry: a.entry, options: { check: a.check, timeout: a.timeout, queryParameters: a['query-parameters'] ? JSON.parse(a['query-parameters']) : undefined } })))
         .command('jobs <action> <id>', 'Read a recent result or cancel an owned run', y => common(y).positional('action', { choices: ['show', 'cancel', 'events'] }).positional('id', { type: 'string' }).option('after', { type: 'number', default: 0 }), async (a) => {
         try {
             const state = (0, agent_control_1.loadControl)(process.cwd());
