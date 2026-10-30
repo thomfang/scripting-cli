@@ -1,6 +1,6 @@
 # Scripting App Command-Line Tool
 
-Release notes and migration from 1.x: [scripting-cli 2.0.0](docs/releases/2.0.0.md).
+Latest release: [2.0.1](docs/releases/2.0.1.md). Migration from 1.x: [2.0.0](docs/releases/2.0.0.md).
 
 Welcome to the `scripting-cli`, the command-line tool designed for integrating with the Scripting app. This tool allows you to synchronize and preview your scripts in real-time as you develop them using your favorite desktop editor (VSCode, Cursor, Windsurf, Zed, WebStorm, Vim, and more).
 
@@ -254,14 +254,15 @@ scripting-cli jobs cancel <run-id> --json
   deadline is 30 seconds (`--timeout`, 1–120). Forgetting to call `Script.exit`
   can therefore produce a timeout. Request parameters retain the script's
   normal App permission checks.
-- `run --screenshot` requires Scripting in the foreground. It waits for this
+- `run --screenshot` attempts capture in either foreground or background. It waits for this
   run's view, waits `--capture-after` seconds (0–10, default 2), captures the
   view, and ends this run. Its result says `completionReason: preview_capture`;
   this is a finite preview, not proof the script exited itself or that all
   remote content finished loading. No rendered view means an explicit error,
   not a successful blank image.
 - Both widget modes render the current script's `widget.tsx` in the App's
-  foreground preview and close automatically. Without `--screenshot`, no image
+  preview and close automatically. Rendering is attempted in either App state;
+  unavailable views, render errors or timeouts are reported. Without `--screenshot`, no image
   is generated. These commands do not install a home-screen widget or confirm
   a WidgetKit timeline refresh. The supplied family/parameter do not overwrite
   the user's normal preview preferences.
@@ -345,8 +346,8 @@ console.log("SCREENSHOT_READY")
 
 Then run `scripting-cli run "MyScript" --screenshot --ready-log SCREENSHOT_READY --capture-after 1 --json`.
 Only a non-error log from this run matches. Capture waits for both the signal and
-a valid view before its settling delay; missing signals/views and foreground
-loss never yield a successful screenshot. A script that exits without its signal
+a valid view before its settling delay; missing signals/views never yield a
+successful screenshot. Backgrounding alone does not cancel a capture attempt. A script that exits without its signal
 returns `ready_signal_missing`. Existing timeout rules remain unchanged.
 
 `widget-batch "MyScript" --cases ./cases.json --timeout 60 --stream` runs one
@@ -363,15 +364,17 @@ source revision across 1...8 serial widget cases. A manifest is a JSON array:
 IDs use letters, digits, `_` and `-`, and must be unique. Results name each case
 and any skipped cases; PNGs are `<output>/<run-id>/<case-id>.png`. Image bytes total
 at most 8 MiB for the batch. A failed/cancelled batch can retain completed earlier
-cases; remaining cases do not execute. Every preview uses foreground rendering
-and closes automatically, without changing normal preview preferences.
+cases; remaining cases do not execute. Every preview attempts rendering in the
+current App state and closes automatically, without changing normal preview preferences.
 
-Script commands need the App connected; create/attach also need foreground and
-refuse an active manual run/preview. `create` uses an existing desktop directory
+Script commands need the App connected; create/attach can bind in the background
+and refuse an active manual run/preview. `create` uses an existing desktop directory
 or creates a minimal local `script.json` / `index.tsx` scaffold when absent. App
 name collisions return `script_exists`, without overwriting that App script.
 A scaffold can remain locally if App creation is refused. `attach` publishes a
-desktop snapshot and enters that script's debug page. Different App source
+desktop snapshot and binds the script immediately. If the App is backgrounded,
+its debug page appears when the App returns to the foreground; this does not
+rerun the command. Different App source
 returns `script_conflict` with its current revision; only explicit `--replace`
 plus the inspected `--expected-revision` permits replacement. A changed App
 revision is rejected again at publication. Ignored files are preserved. The

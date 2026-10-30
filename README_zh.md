@@ -1,6 +1,6 @@
 # Scripting 应用命令行工具
 
-2.0.0 更新及从 1.x 迁移：[版本说明](docs/releases/2.0.0.md)。
+最新版本：[2.0.1](docs/releases/2.0.1.md)。从 1.x 迁移：[2.0.0 版本说明](docs/releases/2.0.0.md)。
 
 欢迎使用 `scripting-cli` 命令行工具，它旨在与 Scripting 应用集成。该工具允许您在使用喜爱的桌面编辑器（VSCode、Cursor、Windsurf、Zed、WebStorm、Vim 等）开发脚本时，实现实时同步和预览。
 
@@ -232,8 +232,8 @@ scripting-cli jobs cancel <run-id> --json
 - 运行命令只操作 App 当前调试脚本；创建与切换需要下面的显式 scripts 命令。多设备时必须通过 `--device <设备ID>` 指定目标。`devices` 的 `responsive` 来自实际响应；`status` 返回前后台、脚本、版本、`activeRunId` 和保活状态。
 - 文档和 API 声明来自连接中的 App，结果带 App 版本；不静默退回旧版离线资料。先搜索，再用返回的文档 ID 读取正文。
 - `run` 和 `widget` 先取得当前脚本的完整源码快照，App 校验并应用后再执行。默认整体超时 30 秒，`--timeout` 可设置 1–120 秒。普通脚本应调用 `Script.exit(result)` 返回结果并结束；授权仍使用脚本原有权限。
-- `run --screenshot` 需要 App 在前台。等待本次视图就绪后，再等待 `--capture-after` 秒（默认 2，范围 0–10），截图并结束本次运行，返回 `completionReason: preview_capture`。这不表示远程内容已全部加载。没有可捕获视图时明确失败，不返回空白成功图。
-- 两种 `widget` 命令都在前台渲染 `widget.tsx`，完成后自动收起。不带 `--screenshot` 时不生成图片。family 和 parameter 不覆盖平时预览偏好；结果不代表已安装系统桌面小组件或更新 WidgetKit 时间线。
+- `run --screenshot` 在 App 前台或后台都会直接尝试截图。等待本次视图就绪后，再等待 `--capture-after` 秒（默认 2，范围 0–10），截图并结束本次运行，返回 `completionReason: preview_capture`。这不表示远程内容已全部加载。没有可捕获视图时明确失败，不返回空白成功图。
+- 两种 `widget` 命令都会直接尝试渲染 `widget.tsx`，完成后自动收起；后台状态本身不拦截请求，无法渲染时返回实际错误或超时。不带 `--screenshot` 时不生成图片。family 和 parameter 不覆盖平时预览偏好；结果不代表已安装系统桌面小组件或更新 WidgetKit 时间线。
 - `--no-sync` 仅使用 App 上次确认的源码版本；版本未知或被后续更新失效时拒绝执行。已有手动运行或预览返回 `busy`，不会自动停止用户脚本。
 - Ctrl-C 只请求取消本次命令。发送后保持 `cancelling`，收到 App 确认才变为 `cancelled`；缺少确认是失败，不表示已停止。断连不自动重放运行。
 
@@ -264,7 +264,7 @@ scripting-cli skill
 
 `--stream` 输出 JSONL，同步、编译、执行、等待就绪、渲染、截图各有阶段；日志和诊断带运行/请求/设备/会话身份及递增 seq，最后只有一条 `type: result` 记录，任务在其 `job` 字段。即使同时传 `--json`，也是逐行事件格式。每项任务保留最近 256 条事件、64 KiB 流式日志；慢读者丢失已过期事件会看到 `gap`，最终日志也标记截断。失败时在原超时预算内补取类型诊断，返回脚本相对路径、从 1 开始的行列、TypeScript 错误码和消息；运行错误不一定对应类型诊断。
 
-异步页面在目标状态就绪后调用 `console.log("SCREENSHOT_READY")`，配合 `--ready-log SCREENSHOT_READY`。只有本次运行中精确匹配的非错误日志有效；收到标记且存在可截图视图后才计 capture-after。未发标记就退出返回 `ready_signal_missing`；没有就绪、视图或失去前台时不返回假成功，原有超时边界保持生效。
+异步页面在目标状态就绪后调用 `console.log("SCREENSHOT_READY")`，配合 `--ready-log SCREENSHOT_READY`。只有本次运行中精确匹配的非错误日志有效；收到标记且存在可截图视图后才计 capture-after。未发标记就退出返回 `ready_signal_missing`；没有就绪信号或视图时不返回假成功；切后台本身不会取消尝试，原有超时边界保持生效。
 
 批量清单是 1–8 项 JSON 数组，每项包含唯一 `id`（字母、数字、下划线或连字符）、`family`、可选 `parameter`、布尔 `screenshot`，例如：
 
@@ -276,9 +276,9 @@ scripting-cli skill
 ]
 ```
 
-所有项使用同一源码版本串行渲染，前台完成后自动收起，不改变平时预览偏好。结果逐项说明完成/失败与跳过数量；图片位于 `<output>/<run-id>/<case-id>.png`，整批图片合计最多 8 MiB。失败或取消可保留先前已完成项，后续项不会执行，不能把部分产物宣称为整批成功。
+所有项使用同一源码版本串行尝试渲染，完成后自动收起，不改变平时预览偏好。结果逐项说明完成/失败与跳过数量；图片位于 `<output>/<run-id>/<case-id>.png`，整批图片合计最多 8 MiB。失败或取消可保留先前已完成项，后续项不会执行，不能把部分产物宣称为整批成功。
 
-`scripts create` 仅在 App 新建，重名返回 `script_exists`；桌面目录不存在时先创建最小 script.json/index.tsx 脚手架，App 拒绝时该本地脚手架可能保留。`scripts attach` 发布桌面快照并进入对应调试页。App 与桌面源码不同返回 `script_conflict`，只有明确的 `--replace` 与 inspect 得到的 App revision 才允许替换；发布前再次核验，过期版本仍拒绝。排除文件保留，不自动停止其他手动运行或预览。App 成功后才切换 host watcher，旧脚本延迟事件不能污染新脚本，并从同一 App 刷新桌面类型声明。创建和绑定要求前台，原运行命令不会暗中切脚本。
+`scripts create` 仅在 App 新建，重名返回 `script_exists`；桌面目录不存在时先创建最小 script.json/index.tsx 脚手架，App 拒绝时该本地脚手架可能保留。`scripts attach` 发布桌面快照并立即绑定对应脚本；如果 App 在后台，回到前台时再展示当前绑定的调试页，不会重新执行命令。App 与桌面源码不同返回 `script_conflict`，只有明确的 `--replace` 与 inspect 得到的 App revision 才允许替换；发布前再次核验，过期版本仍拒绝。排除文件保留，不自动停止其他手动运行或预览。App 成功后才切换 host watcher，旧脚本延迟事件不能污染新脚本，并从同一 App 刷新桌面类型声明。创建和绑定支持后台，调试绑定会维持保活；原运行命令不会暗中切脚本。
 
 新能力单独协商，旧版 App 不支持时明确拒绝；首版命令仍可使用。包内 [skills/scripting-development/SKILL.md](skills/scripting-development/SKILL.md) 和 `scripting-cli skill` 提供 Codex/Claude Code 的查文档→编辑→运行→看图→修正流程，以及冲突、就绪、批量和取消约束。需要时自行复制到 Agent 已配置的 Skill 目录；命令不会全局安装或改写配置。替换前应核对差异并获得针对该次覆盖的授权。
 
