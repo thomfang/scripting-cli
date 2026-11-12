@@ -16,7 +16,7 @@ export const hash = (bytes: crypto.BinaryLike) => crypto.createHash('sha256').up
 export interface SourceFile { path: string; sha256: string; data: string; }
 export interface SourceSnapshot { revision: string; files: SourceFile[]; ignore: string[]; }
 export interface WidgetCase { id: string; family: string; parameter?: string; screenshot: boolean; }
-export interface AgentOptions { check?: boolean; events?: boolean; readyLog?: string; cases?: WidgetCase[]; replace?: boolean; expectedRevision?: string; timeout?: number; screenshot?: boolean; captureAfter?: number; family?: string; parameter?: string; noSync?: boolean; queryParameters?: Record<string, unknown>; }
+export interface AgentOptions { check?: boolean; events?: boolean; readyLog?: string; cases?: WidgetCase[]; replace?: boolean; expectedRevision?: string; timeout?: number; screenshot?: boolean; screenshotFinal?: boolean; captureAfter?: number; family?: string; parameter?: string; noSync?: boolean; queryParameters?: Record<string, unknown>; }
 export interface AgentCommand { method: string; device?: string; script?: string; /** @deprecated Compatibility input for protocol-v1 clients. */ project?: string; skill?: string; entry?: string; options?: AgentOptions; query?: string; docId?: string; symbol?: string; lang?: string; limit?: number; requestId?: string; }
 export const methods = ['status', 'docs.search', 'docs.get', 'api.get', 'run', 'widget', 'widget.batch', 'scripts.list', 'scripts.inspect', 'scripts.create', 'scripts.attach', 'skills.run'];
 export function validateCommand(value: any): AgentCommand {
@@ -35,13 +35,14 @@ export function validateCommand(value: any): AgentCommand {
   if (value.method === 'api.get' && !value.symbol) throw new AgentError('invalid_request','An API symbol is required.');
   const o = value.options ?? {};
   if (!o || typeof o !== 'object' || Array.isArray(o)) throw new AgentError('invalid_request', 'Invalid options.');
-  for (const k of ['screenshot', 'noSync', 'replace', 'events', 'check']) if (o[k] !== undefined && typeof o[k] !== 'boolean') throw new AgentError('invalid_request', `Invalid ${k}.`);
+  for (const k of ['screenshot', 'screenshotFinal', 'noSync', 'replace', 'events', 'check']) if (o[k] !== undefined && typeof o[k] !== 'boolean') throw new AgentError('invalid_request', `Invalid ${k}.`);
   if (o.timeout !== undefined && (!Number.isFinite(o.timeout) || o.timeout < 1 || o.timeout > 120)) throw new AgentError('invalid_request', 'Timeout must be 1...120 seconds.');
   if (o.captureAfter !== undefined && (!Number.isFinite(o.captureAfter) || o.captureAfter < 0 || o.captureAfter > 10)) throw new AgentError('invalid_request', 'Capture delay must be 0...10 seconds.');
+  if (o.screenshotFinal && (value.method !== 'run' || o.captureAfter !== undefined)) throw new AgentError('invalid_request', 'Final capture requires a script run without a capture delay.');
   if (o.family !== undefined && !widgetFamilies.includes(o.family)) throw new AgentError('invalid_request', 'Unsupported widget family.');
   if (o.parameter !== undefined && (typeof o.parameter !== 'string' || o.parameter.length > 16384)) throw new AgentError('invalid_request', 'Invalid widget parameter.');
   if (o.queryParameters !== undefined && (!o.queryParameters || typeof o.queryParameters !== 'object' || Array.isArray(o.queryParameters) || Buffer.byteLength(JSON.stringify(o.queryParameters)) > 65536)) throw new AgentError('invalid_request', 'Invalid query parameters.');
-  if (o.readyLog !== undefined && (value.method !== 'run' || !o.screenshot || typeof o.readyLog !== 'string' || !o.readyLog.length || Buffer.byteLength(o.readyLog)>1024 || /[\r\n]/.test(o.readyLog))) throw new AgentError('invalid_request','Ready log requires script screenshot mode and one exact line.');
+  if (o.readyLog !== undefined && (value.method !== 'run' || !(o.screenshot || o.screenshotFinal) || typeof o.readyLog !== 'string' || !o.readyLog.length || Buffer.byteLength(o.readyLog)>1024 || /[\r\n]/.test(o.readyLog))) throw new AgentError('invalid_request','Ready log requires script screenshot mode and one exact line.');
   if (o.expectedRevision !== undefined && (typeof o.expectedRevision!=='string' || !/^[a-f0-9]{64}$/.test(o.expectedRevision))) throw new AgentError('invalid_request','Invalid expected revision.');
   if (value.method.startsWith('scripts.') && value.method!=='scripts.list' && !validPackageName(value.script)) throw new AgentError('invalid_script','A safe script name is required.');
   if (value.method==='widget.batch') {

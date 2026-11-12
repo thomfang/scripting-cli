@@ -34,6 +34,7 @@ export interface AgentOptions {
     expectedRevision?: string;
     timeout?: number;
     screenshot?: boolean;
+    screenshotFinal?: boolean;
     captureAfter?: number;
     family?: string;
     parameter?: string;

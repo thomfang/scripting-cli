@@ -16,7 +16,7 @@ function fixture(t) {
   t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));
   return directory;
 }
-function device(broker,id=uuid(),handler) {
+function device(broker,id=uuid(),handler,extensions={}) {
   const socket=new EventEmitter();socket.id=uuid();socket.connected=true;
   const state={pauses:0,resumes:0,requests:[],project:'Fixture',cancelled:[],types:[]};
   broker.register(socket,{project:()=>state.project,ignore:()=>[],pause:()=>state.pauses++,resume:()=>state.resumes++,switchProject:async project=>{state.project=project;},types:async files=>{state.types.push(files);}});
@@ -25,7 +25,7 @@ function device(broker,id=uuid(),handler) {
     if(handler)handler(request,reply=>socket.emit('agentResult',{protocolVersion:1,requestId:request.requestId,runId:request.runId,sessionId:request.sessionId,...reply}));
   });
   socket.on('agentCancel',value=>state.cancelled.push(value));
-  socket.emit('agentHello',{protocolVersion:1,deviceId:id,sessionId:uuid(),project:'Fixture',capabilities:['status','run','widget','docs.search','docs.get','api.get','events-v1','ready-log','widget.batch','projects.list','projects.inspect','projects.create','projects.attach']});
+  socket.emit('agentHello',{protocolVersion:1,deviceId:id,sessionId:uuid(),project:'Fixture',capabilities:['status','run','widget','docs.search','docs.get','api.get','events-v1','ready-log','widget.batch','projects.list','projects.inspect','projects.create','projects.attach'],...extensions});
   return {socket,state,id};
 }
 async function finished(broker,id) {
@@ -53,6 +53,23 @@ test('snapshot rejects traversal, symlinks and oversized files',async t=>{
 });
 test('invalid options fail before dispatch',()=>{
   for(const value of [{method:'run',options:{timeout:0}},{method:'run',options:{captureAfter:11}},{method:'widget',options:{family:'invented'}},{method:'run',options:{screenshot:'yes'}}])assert.throws(()=>validateCommand(value),e=>e.code==='invalid_request');
+});
+test('final screenshot validates options and requires the device capability',async t=>{
+  for (const value of [
+    {method:'run',options:{screenshotFinal:'yes'}},
+    {method:'run',options:{screenshotFinal:true,captureAfter:0}},
+    {method:'widget',options:{screenshotFinal:true}},
+  ]) assert.throws(()=>validateCommand(value),e=>e.code==='invalid_request');
+  assert.equal(validateCommand({method:'run',options:{screenshotFinal:true,readyLog:'finished'}}).options.screenshotFinal,true);
+  const broker=new AgentBroker(fixture(t));t.after(()=>broker.close());
+  const legacy=device(broker);
+  assert.throws(()=>broker.submit({method:'run',device:legacy.id,options:{screenshotFinal:true}}),e=>e.code==='unsupported_capability');
+  assert.equal(legacy.state.requests.length,0);
+  const current=device(broker,undefined,(request,reply)=>queueMicrotask(()=>reply({status:'completed',revision:request.snapshot.revision,result:{completionReason:'script_exit'}})),{screenshotFinal:true});
+  const result=await finished(broker,broker.submit({method:'run',device:current.id,options:{screenshotFinal:true}}).runId);
+  assert.equal(result.status,'completed');
+  assert.equal(current.state.requests[0].options.screenshotFinal,true);
+  assert.equal(current.state.requests[0].options.captureAfter,undefined);
 });
 test('multiple devices require explicit choice and project mismatch cannot execute',t=>{
   const broker=new AgentBroker(fixture(t));t.after(()=>broker.close());device(broker);device(broker);
@@ -123,19 +140,20 @@ test('PNG result is stored outside JSON and copied to an explicit output path',a
 
 test('actual CLI process supports JSON docs, API, execution and widget commands',async t=>{
   const root=fixture(t),broker=new AgentBroker(root),control=await startAgentControl(broker);t.after(()=>control.close());
-  const peer=device(broker,undefined,(request,reply)=>queueMicrotask(()=>reply({status:'completed',revision:request.snapshot?.revision,result:request.method==='status'?{appState:'foreground'}:{method:request.method,value:'ok'}})));
+  const peer=device(broker,undefined,(request,reply)=>queueMicrotask(()=>reply({status:'completed',revision:request.snapshot?.revision,result:request.method==='status'?{appState:'foreground'}:{method:request.method,value:'ok'}})),{screenshotFinal:true});
   async function command(args) {
     return new Promise((resolve,reject)=>{
       const child=require('node:child_process').spawn(process.execPath,[path.resolve(__dirname,'../dist/cli.js'),...args,'--json'],{cwd:root});
       let stdout='',stderr='';child.stdout.on('data',value=>stdout+=value);child.stderr.on('data',value=>stderr+=value);child.on('error',reject);child.on('close',code=>resolve({code,stdout,stderr}));
     });
   }
-  for (const args of [['devices'],['status'],['docs','search','Navigation'],['docs','get','navigation','--lang','zh'],['api','get','Navigation.present'],['run','Fixture','--capture-after','1','--query-parameters','{"sample":true}'],['widget','Fixture','--family','systemMedium']]) {
+  for (const args of [['devices'],['status'],['docs','search','Navigation'],['docs','get','navigation','--lang','zh'],['api','get','Navigation.present'],['run','Fixture','--capture-after','1','--query-parameters','{"sample":true}'],['run','Fixture','--screenshot-final'],['widget','Fixture','--family','systemMedium']]) {
     const result=await command(args);assert.equal(result.code,0,result.stderr+result.stdout);
     const value=JSON.parse(result.stdout);if(!Array.isArray(value))assert.equal(value.status,'completed');
   }
   assert.ok(peer.state.requests.some(request=>request.method==='api.get'&&request.symbol==='Navigation.present'));
   assert.ok(peer.state.requests.some(request=>request.method==='run'&&request.options.captureAfter===1&&request.options.queryParameters.sample===true));
+  assert.ok(peer.state.requests.some(request=>request.method==='run'&&request.options.screenshotFinal===true&&request.options.captureAfter===undefined));
   assert.ok(peer.state.requests.some(request=>request.method==='widget'&&request.options.family==='systemMedium'));
   const typo=await command(['widget','Fixture','--capture-after','2']);assert.notEqual(typo.code,0);assert.match(typo.stderr+typo.stdout,/Unknown argument/);assert.equal(JSON.parse(typo.stdout).error.code,'invalid_usage');
 });

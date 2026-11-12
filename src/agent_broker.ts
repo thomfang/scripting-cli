@@ -28,11 +28,13 @@ export class AgentBroker {
       // Duplicate installation IDs remain ambiguous. A second socket must not
       // take over a connected device merely by claiming its identifier.
       if (meta.capabilities.length > 32 || !meta.capabilities.every((value:any)=>typeof value==='string' && value.length<64)) return;
+      const capabilities = scriptCapabilities(meta.capabilities);
+      if (meta.screenshotFinal === true && !capabilities.includes('screenshot-final')) capabilities.push('screenshot-final');
       if (peer.metadata && peer.metadata.sessionId !== meta.sessionId) this.invalidate(peer);
       peer.metadata = {protocolVersion:1,deviceId:meta.deviceId,sessionId:meta.sessionId,
         name:typeof meta.name==='string'?meta.name.slice(0,128):'Scripting device',
         appVersion:typeof meta.appVersion==='string'?meta.appVersion.slice(0,64):'',
-        capabilities:scriptCapabilities(meta.capabilities),...this.statusFields(meta)};
+        capabilities,...this.statusFields(meta)};
     });
     socket.on('agentResult', (reply: any) => {
       const pending = peer.pending.get(reply?.requestId);
@@ -114,6 +116,7 @@ export class AgentBroker {
     const requestId = command.requestId || crypto.randomUUID();
     if (!peer.metadata.capabilities.includes(command.method)) throw new AgentError('unsupported_capability','This App does not support the command.');
     if(skillRun && (!skill || skill.name!==command.skill || peer.metadata.skill!==skill.name || peer.metadata.skillBindingId!==skill.bindingId)) throw new AgentError('skill_mismatch','Select this skill in the App development page first.');
+    if (command.options?.screenshotFinal && !peer.metadata.capabilities.includes('screenshot-final')) throw new AgentError('unsupported_capability', 'This App does not support final screenshots.');
     if(command.options?.readyLog && !peer.metadata.capabilities.includes('ready-log') || command.options?.events && !peer.metadata.capabilities.includes('events-v1')) throw new AgentError('unsupported_capability','This App does not support ready-log or live events.');
     if (mutation && !scriptChange && !skillRun && (!this.selectedScript(peer) || peer.metadata.script !== this.selectedScript(peer))) throw new AgentError('debug_session_required', 'Open the current script in the App debug page first.');
     const script = command.script ?? this.selectedScript(peer) ?? undefined;

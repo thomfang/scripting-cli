@@ -56,20 +56,22 @@ function validateCommand(value) {
     const o = value.options ?? {};
     if (!o || typeof o !== 'object' || Array.isArray(o))
         throw new AgentError('invalid_request', 'Invalid options.');
-    for (const k of ['screenshot', 'noSync', 'replace', 'events', 'check'])
+    for (const k of ['screenshot', 'screenshotFinal', 'noSync', 'replace', 'events', 'check'])
         if (o[k] !== undefined && typeof o[k] !== 'boolean')
             throw new AgentError('invalid_request', `Invalid ${k}.`);
     if (o.timeout !== undefined && (!Number.isFinite(o.timeout) || o.timeout < 1 || o.timeout > 120))
         throw new AgentError('invalid_request', 'Timeout must be 1...120 seconds.');
     if (o.captureAfter !== undefined && (!Number.isFinite(o.captureAfter) || o.captureAfter < 0 || o.captureAfter > 10))
         throw new AgentError('invalid_request', 'Capture delay must be 0...10 seconds.');
+    if (o.screenshotFinal && (value.method !== 'run' || o.captureAfter !== undefined))
+        throw new AgentError('invalid_request', 'Final capture requires a script run without a capture delay.');
     if (o.family !== undefined && !exports.widgetFamilies.includes(o.family))
         throw new AgentError('invalid_request', 'Unsupported widget family.');
     if (o.parameter !== undefined && (typeof o.parameter !== 'string' || o.parameter.length > 16384))
         throw new AgentError('invalid_request', 'Invalid widget parameter.');
     if (o.queryParameters !== undefined && (!o.queryParameters || typeof o.queryParameters !== 'object' || Array.isArray(o.queryParameters) || Buffer.byteLength(JSON.stringify(o.queryParameters)) > 65536))
         throw new AgentError('invalid_request', 'Invalid query parameters.');
-    if (o.readyLog !== undefined && (value.method !== 'run' || !o.screenshot || typeof o.readyLog !== 'string' || !o.readyLog.length || Buffer.byteLength(o.readyLog) > 1024 || /[\r\n]/.test(o.readyLog)))
+    if (o.readyLog !== undefined && (value.method !== 'run' || !(o.screenshot || o.screenshotFinal) || typeof o.readyLog !== 'string' || !o.readyLog.length || Buffer.byteLength(o.readyLog) > 1024 || /[\r\n]/.test(o.readyLog)))
         throw new AgentError('invalid_request', 'Ready log requires script screenshot mode and one exact line.');
     if (o.expectedRevision !== undefined && (typeof o.expectedRevision !== 'string' || !/^[a-f0-9]{64}$/.test(o.expectedRevision)))
         throw new AgentError('invalid_request', 'Invalid expected revision.');
