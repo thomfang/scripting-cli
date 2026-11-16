@@ -31,6 +31,7 @@ export declare class SkillSyncController {
     stop(): Promise<void>;
     close(): Promise<void>;
     private names;
+    private catalogSnapshot;
     private watchCatalog;
     private request;
     private schedule;

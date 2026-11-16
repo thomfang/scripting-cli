@@ -14,6 +14,8 @@ import { isAcknowledgedChange } from './agent_protocol';
 
 export class Controller {
 
+  readonly workspace = fs.realpathSync(process.cwd());
+
   private static instances: Map<string, Controller> = new Map();
 
   static create(socket: Socket, config: ResolvedConfig) {

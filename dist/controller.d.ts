@@ -4,6 +4,7 @@ import { globalDtsFileName, scriptingDtsFileName } from './const';
 import { ResolvedConfig } from './types';
 import { SkillSyncController } from './skill_sync';
 export declare class Controller {
+    readonly workspace: string;
     private static instances;
     static create(socket: Socket, config: ResolvedConfig): Controller;
     static get(socketId: string): Controller | undefined;

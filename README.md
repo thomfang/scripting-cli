@@ -412,3 +412,9 @@ scripting-cli skills run my-skill scripts/main.tsx --query-parameters '{"sample"
 Each run synchronizes one complete source revision, pauses synchronization while testing, and returns stdout/stderr, the result from `Script.exit(value)`, exit code and errors. Skill identity, permissions, `Script.directory` and Storage/Keychain behavior match the App’s `scripting-ts run`. End successful scripts with `Script.exit(...)`; otherwise the run times out. `--check` checks without executing. `--stream`, `--device`, Ctrl-C and `jobs show/events/cancel` work as for script runs. Entry paths must stay inside the selected package. Skill runs do not support screenshots in this version.
 
 Use an updated App and CLI for this capability. The existing singular `scripting-cli skill` still prints the portable development guide.
+
+### Offline documentation in your workspace
+
+After connecting the App to this server, tap **Sync Documentation** in the Development Server page. The App copies its bundled English and Chinese documentation, examples and assets to `docs/Scripting Documentation/` in the workspace where you started the CLI. This does not select or run a script or skill.
+
+That subdirectory is a generated copy: syncing again replaces its contents and removes files absent from the App’s current bundle. Keep personal notes elsewhere in `docs/`. An existing directory that was not created by this feature is left untouched; move it before retrying. Both the App and CLI must support documentation sync. The existing `docs` commands continue to query the connected App.

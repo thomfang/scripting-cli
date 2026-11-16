@@ -111,6 +111,15 @@ test('Skill catalog discovers new desktop packages without selecting or running 
  await until(()=>events.some(e=>e.names.includes('new')));assert.equal(ctrl.selected(),null);
 });
 
+test('Skill catalog supplies display metadata without binding or executing a skill',async t=>{
+ const root=fixture(t),peer=new Peer(),ctrl=new SkillSyncController(peer,root,[],async()=>{});t.after(()=>ctrl.close());
+ fs.writeFileSync(path.join(root,'skills','fixture','SKILL.md'),'---\nname: fixture\ndescription: "A quoted description"\nmetadata:\n  display_name: "Workspace Skill"\n---\nBody');
+ const result=await request(peer,{method:'list'});
+ assert.equal(result.success,true);assert.ok(result.names.includes('fixture'));
+ assert.deepEqual(result.entries.find(e=>e.name==='fixture'),{name:'fixture',title:'Workspace Skill',description:'A quoted description'});
+ assert.equal(ctrl.selected(),null);
+});
+
 test('publication rejects portable source path aliases and preserves existing bytes',async t=>{
  const root=fixture(t),dir=path.join(root,'skills','fixture');
  const previous=await snapshotSkill(root,'fixture',[]),incoming=snapshot({'SKILL.md':markdown,'Case.ts':'one','case.ts':'two'});

@@ -15,6 +15,7 @@ const agent_broker_1 = require("./agent_broker");
 const skill_sync_1 = require("./skill_sync");
 const agent_protocol_1 = require("./agent_protocol");
 class Controller {
+    workspace = fs_1.default.realpathSync(process.cwd());
     static instances = new Map();
     static create(socket, config) {
         const ctrl = new Controller(socket, config);

@@ -121,16 +121,40 @@ export class SkillSyncController {
     const root=ensureRoot(this.workspace);
     return fs.readdirSync(root,{withFileTypes:true}).filter(item=>item.isDirectory()&&!item.isSymbolicLink()&&validPackageName(item.name)&&fs.existsSync(path.join(root,item.name,'SKILL.md'))).map(x=>x.name).sort().slice(0,1000);
   }
+  private async catalogSnapshot() {
+    const names = await this.names();
+    const entries = [];
+    for (const name of names) {
+      let title = name, description: string | undefined;
+      try {
+        const file = path.join(this.workspace, 'skills', name, 'SKILL.md');
+        const info = await fs.promises.lstat(file);
+        if (info.isFile() && !info.isSymbolicLink() && info.size <= 512 * 1024) {
+          const text = await fs.promises.readFile(file, 'utf8');
+          const header = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
+          const scalar = (value?: string) => {
+            const trimmed = value?.trim();
+            if (trimmed?.startsWith('"')) { try { return String(JSON.parse(trimmed)); } catch { /* Use the same quote trimming as App. */ } }
+            return trimmed?.replace(/^["']|["']$/g, '');
+          };
+          description = scalar(header?.match(/^description:\s*(.*)$/m)?.[1])?.slice(0, 4096);
+          title = scalar(header?.match(/^\s+display_name:\s*(.*)$/m)?.[1])?.slice(0, 256) || name;
+        }
+      } catch { /* A catalog is still useful when a package is unreadable. */ }
+      entries.push({ name, title, description });
+    }
+    return { names, entries };
+  }
   private watchCatalog() {
     if(this.catalog)return;
     this.catalog=chokidar.watch(ensureRoot(this.workspace),{depth:1,ignoreInitial:true,ignored:p=>path.relative(path.join(this.workspace,'skills'),p).split(path.sep).some(x=>x.startsWith('.')||x==='node_modules')});
-    const refresh=()=>{if(this.catalogTimer)clearTimeout(this.catalogTimer);this.catalogTimer=setTimeout(()=>{void this.names().then(names=>this.socket.emit('skillSyncCatalog',{version:1,names})).catch(()=>{});},200);};
-    this.catalog.on('add',refresh).on('unlink',refresh).on('addDir',refresh).on('unlinkDir',refresh).on('error',()=>{});
+    const refresh=()=>{if(this.catalogTimer)clearTimeout(this.catalogTimer);this.catalogTimer=setTimeout(()=>{void this.catalogSnapshot().then(catalog=>{if(!this.closed)this.socket.emit('skillSyncCatalog',{version:1,...catalog});}).catch(()=>{});},200);};
+    this.catalog.on('add',refresh).on('change',refresh).on('unlink',refresh).on('addDir',refresh).on('unlinkDir',refresh).on('error',()=>{});
   }
   private async request(r:any):Promise<Record<string,unknown>> {
     if(this.closed||!this.socket.connected)throw new AgentError('disconnected','Skill connection ended.');
     if(r?.version!==1)throw new AgentError('unsupported_capability','Unsupported skill sync version.');
-    if(r.method==='list'){this.watchCatalog();return {names:await this.names(),ignore:skillIgnores(this.ignore)};}
+    if(r.method==='list'){this.watchCatalog();return {...await this.catalogSnapshot(),ignore:skillIgnores(this.ignore)};}
     if(r.method==='inspect')return {snapshot:await inspectSkill(this.workspace,r.name,this.ignore)??null};
     if(this.pauses)throw new AgentError('busy','A desktop run is active.');
     if(r.method==='stop') {if(this.binding&&r.bindingId!==this.binding.id)throw new AgentError('skill_mismatch','The skill binding changed.');await this.stop();return {};}

@@ -7,6 +7,8 @@ exports.initHttpRouter = initHttpRouter;
 const express_1 = __importDefault(require("express"));
 const controller_1 = require("./controller");
 const chalk_1 = __importDefault(require("chalk"));
+const documentation_sync_1 = require("./documentation_sync");
+const agent_protocol_1 = require("./agent_protocol");
 const getFileContent = (req, res) => {
     const { socketId, scriptName, relativePath, } = req.query;
     if (!socketId) {
@@ -157,6 +159,27 @@ const syncScriptFromServer = (req, res) => {
 function initHttpRouter(app) {
     app.use(express_1.default.json({ limit: '50mb' }));
     app.use(express_1.default.urlencoded({ extended: true }));
+    app.get('/developmentWorkspace', (req, res) => {
+        const ctrl = typeof req.query.socketId === 'string' ? controller_1.Controller.get(req.query.socketId) : undefined;
+        if (!ctrl?.socket?.connected) {
+            res.status(409).json({ error: { code: 'disconnected', message: 'Connect to a development server first.' } });
+            return;
+        }
+        res.json({ success: true, ...(0, documentation_sync_1.developmentWorkspace)(ctrl.workspace) });
+    });
+    app.post('/syncDocumentation', async (req, res) => {
+        const ctrl = typeof req.body?.socketId === 'string' ? controller_1.Controller.get(req.body.socketId) : undefined;
+        if (!ctrl?.socket?.connected) {
+            res.status(409).json({ error: { code: 'disconnected', message: 'The development connection ended.' } });
+            return;
+        }
+        try {
+            res.json(await (0, documentation_sync_1.syncDocumentation)(ctrl.workspace, req.body, () => ctrl.socket?.connected === true));
+        }
+        catch (e) {
+            res.status(409).json({ error: (0, agent_protocol_1.failure)(e) });
+        }
+    });
     app.get("/getFileContent", getFileContent);
     app.get("/getFileData", getFileData);
     app.post("/putFileData", express_1.default.raw({ type: 'application/octet-stream', limit: '100mb' }), putFileData);

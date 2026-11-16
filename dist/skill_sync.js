@@ -205,13 +205,44 @@ class SkillSyncController {
         const root = ensureRoot(this.workspace);
         return fs_1.default.readdirSync(root, { withFileTypes: true }).filter(item => item.isDirectory() && !item.isSymbolicLink() && (0, agent_protocol_1.validPackageName)(item.name) && fs_1.default.existsSync(path_1.default.join(root, item.name, 'SKILL.md'))).map(x => x.name).sort().slice(0, 1000);
     }
+    async catalogSnapshot() {
+        const names = await this.names();
+        const entries = [];
+        for (const name of names) {
+            let title = name, description;
+            try {
+                const file = path_1.default.join(this.workspace, 'skills', name, 'SKILL.md');
+                const info = await fs_1.default.promises.lstat(file);
+                if (info.isFile() && !info.isSymbolicLink() && info.size <= 512 * 1024) {
+                    const text = await fs_1.default.promises.readFile(file, 'utf8');
+                    const header = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
+                    const scalar = (value) => {
+                        const trimmed = value?.trim();
+                        if (trimmed?.startsWith('"')) {
+                            try {
+                                return String(JSON.parse(trimmed));
+                            }
+                            catch { /* Use the same quote trimming as App. */ }
+                        }
+                        return trimmed?.replace(/^["']|["']$/g, '');
+                    };
+                    description = scalar(header?.match(/^description:\s*(.*)$/m)?.[1])?.slice(0, 4096);
+                    title = scalar(header?.match(/^\s+display_name:\s*(.*)$/m)?.[1])?.slice(0, 256) || name;
+                }
+            }
+            catch { /* A catalog is still useful when a package is unreadable. */ }
+            entries.push({ name, title, description });
+        }
+        return { names, entries };
+    }
     watchCatalog() {
         if (this.catalog)
             return;
         this.catalog = chokidar_1.default.watch(ensureRoot(this.workspace), { depth: 1, ignoreInitial: true, ignored: p => path_1.default.relative(path_1.default.join(this.workspace, 'skills'), p).split(path_1.default.sep).some(x => x.startsWith('.') || x === 'node_modules') });
         const refresh = () => { if (this.catalogTimer)
-            clearTimeout(this.catalogTimer); this.catalogTimer = setTimeout(() => { void this.names().then(names => this.socket.emit('skillSyncCatalog', { version: 1, names })).catch(() => { }); }, 200); };
-        this.catalog.on('add', refresh).on('unlink', refresh).on('addDir', refresh).on('unlinkDir', refresh).on('error', () => { });
+            clearTimeout(this.catalogTimer); this.catalogTimer = setTimeout(() => { void this.catalogSnapshot().then(catalog => { if (!this.closed)
+            this.socket.emit('skillSyncCatalog', { version: 1, ...catalog }); }).catch(() => { }); }, 200); };
+        this.catalog.on('add', refresh).on('change', refresh).on('unlink', refresh).on('addDir', refresh).on('unlinkDir', refresh).on('error', () => { });
     }
     async request(r) {
         if (this.closed || !this.socket.connected)
@@ -220,7 +251,7 @@ class SkillSyncController {
             throw new agent_protocol_1.AgentError('unsupported_capability', 'Unsupported skill sync version.');
         if (r.method === 'list') {
             this.watchCatalog();
-            return { names: await this.names(), ignore: skillIgnores(this.ignore) };
+            return { ...await this.catalogSnapshot(), ignore: skillIgnores(this.ignore) };
         }
         if (r.method === 'inspect')
             return { snapshot: await inspectSkill(this.workspace, r.name, this.ignore) ?? null };

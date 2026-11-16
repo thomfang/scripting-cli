@@ -301,3 +301,9 @@ scripting-cli skills run my-skill scripts/main.tsx --query-parameters '{"sample"
 每次测试先同步完整源码版本，运行期间暂停同步，返回 stdout/stderr、`Script.exit(value)` 的结果、退出码与错误。Skill 身份、权限、`Script.directory` 和 Storage/Keychain 行为与 App 的 `scripting-ts run` 一致。脚本完成时需调用 `Script.exit(...)`，否则会等待到超时。`--check` 只检查，不执行。`--stream`、`--device`、Ctrl-C 和 `jobs show/events/cancel` 沿用脚本命令行为。入口只能位于选中包内，本版 Skill 测试不提供截图。
 
 此能力需要更新后的 App 和 CLI。已有单数命令 `scripting-cli skill` 继续用于输出便携开发指南。
+
+### 将文档同步到工作区
+
+App 连接此服务器后，点击开发服务器页面的**同步文档**按钮，即可将 App 内置的中英文文档、示例和资源复制到启动 CLI 的工作区中的 `docs/Scripting Documentation/`。此操作不会选择或运行脚本、Skill。
+
+该子目录是生成的文档副本：再次同步会替换内容，并移除当前 App 文档中已不存在的文件。请将个人笔记保存在 `docs/` 的其他位置。对于并非由此功能创建的已有同名目录，CLI 会保留原内容；移动该目录后可重试。App 和 CLI 均需支持文档同步。既有 `docs` 命令仍查询连接中的 App。
